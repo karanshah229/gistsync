@@ -1,0 +1,17 @@
+# Binaries
+gistsync
+
+# OS files
+.DS_Store
+
+# Go
+vendor/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# IDEs
+.idea/
+.vscode/
