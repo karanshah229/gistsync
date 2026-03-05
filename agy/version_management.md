@@ -4,11 +4,15 @@ This document details the "Single Source of Truth" versioning strategy used in `
 
 ## 1. The Source of Truth (`VERSION`)
 
-The core of the system is the **[VERSION](file:///Users/karan/projects/Personal_projects/gh-gist-syncer/VERSION)** file in the root directory.
+The core of the system is the **[VERSION](file:///Users/karan/projects/Personal_projects/gh-gist-syncer/VERSION)** file (symlinked to `cmd/VERSION`) in the root directory.
 - This file contains the plain SemVer string (e.g., `0.0.7`).
 - All build processes (local, dev, and CI/CD) derive their version from this file.
 
-## 2. Binary Injection (`ldflags`)
+## 2. Global Flags (`--version`, `-v`)
+
+The version is now exposed as a root-level flag rather than a sub-command.
+- `gistsync --version`
+- `gistsync -v`
 
 To ensure the binary knows its own version even after being moved or renamed, we use Go's `-ldflags` to inject values at compile time.
 

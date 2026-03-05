@@ -62,7 +62,7 @@ gistsync watch
 ### 5. Check Status & Version
 ```bash
 gistsync status
-gistsync version
+gistsync --version
 ```
 
 ## Contributing
