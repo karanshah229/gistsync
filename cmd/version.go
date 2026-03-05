@@ -1,12 +1,18 @@
 package cmd
 
 import (
+	_ "embed"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
 
-var version = "dev-concurrency-safe"
+//go:embed VERSION
+var versionFileContent string
+
+// version is the primary version string, can be overwritten by ldflags
+var version string
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
@@ -17,5 +23,9 @@ var versionCmd = &cobra.Command{
 }
 
 func init() {
+	// Fallback to embedded VERSION file if not set by ldflags
+	if version == "" {
+		version = strings.TrimSpace(versionFileContent)
+	}
 	rootCmd.AddCommand(versionCmd)
 }

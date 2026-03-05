@@ -1,10 +1,11 @@
 # Gistsync Makefile
 
 BINARY_NAME=gistsync
-VERSION=$(shell git describe --tags --always 2>/dev/null || echo "dev")
+VERSION=$(shell cat VERSION 2>/dev/null || echo "dev")
+GIT_HASH=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 INSTALL_DIR=/usr/local/bin
 
-.PHONY: build install clean local-install help dev install-tools
+.PHONY: build install clean local-install help dev install-tools install-hooks
 
 help:
 	@echo "Gistsync Build & Install Commands"
@@ -14,10 +15,11 @@ help:
 	@echo "make local-install - Install to ~/go/bin (via go install)"
 	@echo "make dev           - Live reload development mode (rebuilds and installs on change)"
 	@echo "make install-tools - Install development tools (e.g., air)"
+	@echo "make install-hooks - Install Git hooks for versioning and changelog"
 	@echo "make clean         - Remove binaries and dist/ directory"
 
 build:
-	go build -ldflags="-X 'main.Version=$(VERSION)'" -o $(BINARY_NAME) main.go
+	go build -ldflags="-X 'github.com/karanshah229/gistsync/cmd.version=$(VERSION)-$(GIT_HASH)'" -o $(BINARY_NAME) main.go
 
 install: build
 ifeq ($(OS),Windows_NT)
@@ -40,7 +42,7 @@ clean:
 	rm -f $(BINARY_NAME)
 	rm -rf dist/
 
-dev:
+dev: install-tools install-hooks
 	@echo "Warming up sudo for live-reload session..."
 	@sudo -v
 	@# Background loop to keep sudo session alive
@@ -49,3 +51,10 @@ dev:
 
 install-tools:
 	go mod tidy
+
+install-hooks:
+	@echo "Installing Git hooks..."
+	@mkdir -p .git/hooks
+	@cp scripts/git-hooks/pre-commit.sh .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "Hooks installed successfully!"

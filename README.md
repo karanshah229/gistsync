@@ -12,7 +12,7 @@
 
 To install `gistsync` globally on your system:
 
-### One-liner
+### One-liner (Recommended)
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/karanshah229/gistsync/main/scripts/install.sh)"
 ```
@@ -65,17 +65,5 @@ gistsync status
 gistsync version
 ```
 
-## Development Mode
-
-For developers, `gistsync` includes a "React-like" live-reload mode:
-```bash
-make dev
-```
-This will watch your code and automatically recompile/install the system-wide command whenever you save.
-
-## Internal Documentation
-For more detailed information, see the `agy/` directory:
-- [Visibility & Transactional Safety Guide](agy/visibility_guide.md)
-- [Build & Distribution System](agy/build_system.md)
-- [Implementation Walkthrough](agy/walkthrough.md)
-- [CLI API Guide](agy/cli_api.md)
+## Contributing
+Interested in making `gistsync` better? Please see our **[Contributing Guide](CONTRIBUTING.md)** 

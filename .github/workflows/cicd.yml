@@ -33,17 +33,27 @@ jobs:
       - name: Test
         run: go test -v ./core/...
 
-      - name: Bump version and push tag
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        id: tag_version
-        uses: anothrNick/github-tag-action@1.71.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WITH_V: true
-          DEFAULT_BUMP: patch
+      - name: Get version from file
+        id: get_version
+        run: echo "version=$(cat VERSION | xargs)" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        id: check_tag
+        run: |
+          if git rev-parse "v${{ steps.get_version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.check_tag.outputs.exists == 'false'
+        run: |
+          git tag v${{ steps.get_version.outputs.version }}
+          git push origin v${{ steps.get_version.outputs.version }}
 
       - name: Run GoReleaser
-        if: steps.tag_version.outputs.new_tag != ''
+        if: steps.check_tag.outputs.exists == 'false' || github.event_name == 'workflow_dispatch'
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
