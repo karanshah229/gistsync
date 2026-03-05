@@ -4,10 +4,9 @@
 
 ## Prerequisites
 
-1.  **Go**: Ensure Go 1.20+ is installed.
-2.  **GitHub CLI (`gh`)**: The tool uses the `gh` CLI for authentication and API interaction.
-    - Install: `brew install gh`
-    - Login: `gh auth login`
+1.  **GitHub CLI (`gh`)**: `gistsync` uses the `gh` CLI for authentication and API interaction.
+    -   Install: `brew install gh`
+    -   Login: `gh auth login`
 
 ## Installation
 
@@ -35,28 +34,48 @@ go install github.com/karanshah229/gistsync@latest
 ### 1. Initialize Sync
 To start tracking a file or folder:
 ```bash
-./gistsync init path/to/file_or_folder
+gistsync init path/to/file_or_folder
 ```
+-   **Visibility**: Use `--public` for public gists (Defaults to Private/Secret).
+    ```bash
+    gistsync init my_folder --public
+    ```
 
 ### 2. Manual Sync
 To sync changes manually:
 ```bash
-./gistsync sync path/to/file_or_folder
+gistsync sync path/to/file_or_folder
 ```
 
-### 3. Check Status
-To see what needs to be pushed or pulled:
+### 3. Change Visibility
+You can change the visibility of a tracked path at any time. This uses our **Transactional Engine** to safely recreate the Gist without losing your local state.
 ```bash
-./gistsync status
+gistsync visibility path/to/file_or_folder --public
 ```
 
 ### 4. Continuous Sync (Watcher)
 To automatically sync changes as you save (and check for remote updates every 60s):
 ```bash
-./gistsync watch
+gistsync watch
 ```
+
+### 5. Check Status & Version
+```bash
+gistsync status
+gistsync version
+```
+
+## Development Mode
+
+For developers, `gistsync` includes a "React-like" live-reload mode:
+```bash
+make dev
+```
+This will watch your code and automatically recompile/install the system-wide command whenever you save.
 
 ## Internal Documentation
 For more detailed information, see the `agy/` directory:
-- [CLI API Guide](agy/cli_api.md)
+- [Visibility & Transactional Safety Guide](agy/visibility_guide.md)
+- [Build & Distribution System](agy/build_system.md)
 - [Implementation Walkthrough](agy/walkthrough.md)
+- [CLI API Guide](agy/cli_api.md)

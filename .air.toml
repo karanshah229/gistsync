@@ -1,0 +1,38 @@
+root = "."
+test_data_dir = "tests"
+tmp_dir = "tmp"
+
+[build]
+  args_bin = []
+  main = "main.go"
+  full_bin = "gistsync version"
+  cmd = "make install"
+  delay = 1000
+  include_ext = ["go", "tpl", "tmpl", "html"]
+  include_file = []
+  kill_delay = "0s"
+  log = "build-errors.log"
+  poll = false
+  poll_interval = 0
+  rerun = false
+  rerun_delay = 500
+  send_interrupt = false
+  stop_on_error = true
+
+[color]
+  app = ""
+  build = "yellow"
+  main = "magenta"
+  runner = "green"
+  watcher = "cyan"
+
+[log]
+  main_only = false
+  time = false
+
+[misc]
+  clean_on_exit = false
+
+[screen]
+  clear_on_rebuild = false
+  keep_scroll = true

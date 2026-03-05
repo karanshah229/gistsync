@@ -37,6 +37,16 @@ GoReleaser automates the creation of binaries for multiple platforms and archite
 -   **Archives**: Generates `.tar.gz` for Linux/macOS and `.zip` for Windows.
 -   **Artifacts**: Includes `checksums.txt` for security and an auto-generated changelog.
 
+## 5. Development Mode (Live Reload)
+
+Gistsync includes a "React-like" hot-reload development experience for rapid iteration.
+
+-   **Live Reload Utility (`air`)**: Managed as a project-local tool via the Go 1.24+ `tool` directive in `go.mod`.
+-   **`make dev`**:
+    -   **Secure Sudo**: Performs a `sudo -v` at startup to "pre-warm" the credential cache in a secure, masked TTY.
+    -   **Keep-Alive**: Spawns a background loop to maintain the sudo session, enabling subsequent silent installs.
+-   **Automated Workflow**: Upon file change, `air` triggers `make install` (using `cp` to preserve the local binary) and runs `gistsync version` for immediate verification.
+
 ---
 
-This system ensures that building and releasing `gistsync` is reproducible, automated, and secure.
+This system ensures that building, developing, and releasing `gistsync` is reproducible, automated, and secure.
