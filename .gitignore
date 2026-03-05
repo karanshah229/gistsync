@@ -15,3 +15,7 @@ vendor/
 # IDEs
 .idea/
 .vscode/
+
+# Temporary files
+tmp/
+*.log

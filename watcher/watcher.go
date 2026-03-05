@@ -8,14 +8,16 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/internal"
 )
 
 type Watcher struct {
 	Engine *core.Engine
+	Config *internal.Config
 }
 
-func NewWatcher(engine *core.Engine) *Watcher {
-	return &Watcher{Engine: engine}
+func NewWatcher(engine *core.Engine, config *internal.Config) *Watcher {
+	return &Watcher{Engine: engine, Config: config}
 }
 
 func (w *Watcher) Start() error {
@@ -35,12 +37,12 @@ func (w *Watcher) Start() error {
 
 	fmt.Println("GistSync Watcher started. Watching for changes... (Polling remote every 60s)")
 
-	// Polling ticker (60 seconds)
-	pollTicker := time.NewTicker(60 * time.Second)
+	// Polling ticker from config
+	pollTicker := time.NewTicker(time.Duration(w.Config.WatchInterval) * time.Second)
 	defer pollTicker.Stop()
 
-	// Simple debounce implementation
-	debounceTimer := time.NewTimer(500 * time.Millisecond)
+	// Debounce timer from config
+	debounceTimer := time.NewTimer(time.Duration(w.Config.WatchDebounce) * time.Millisecond)
 	debounceTimer.Stop()
 	var lastPath string
 
@@ -52,7 +54,7 @@ func (w *Watcher) Start() error {
 			}
 			if event.Has(fsnotify.Write) {
 				lastPath = event.Name
-				debounceTimer.Reset(500 * time.Millisecond)
+				debounceTimer.Reset(time.Duration(w.Config.WatchDebounce) * time.Millisecond)
 			}
 		case <-debounceTimer.C:
 			// Differentiate between real local changes and remote poll updates via hash

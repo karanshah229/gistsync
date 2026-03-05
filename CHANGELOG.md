@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.0.10] - 2026-03-05
+- feat: Add user config support
+
 ## [0.0.8] - 2026-03-05
 - change version command syntax
 
