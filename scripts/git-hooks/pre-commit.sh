@@ -7,6 +7,7 @@ set -e
 
 # Path to files
 VERSION_FILE="VERSION"
+VERSION_CMD_FILE="cmd/VERSION"
 CHANGELOG_FILE="CHANGELOG.md"
 
 # Colors for terminal
@@ -16,7 +17,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Check if VERSION file is already staged
-if git diff --cached --name-only | grep -q "^${VERSION_FILE}$"; then
+if git diff --cached --name-only | grep -E -q "^(${VERSION_FILE}|${VERSION_CMD_FILE})$"; then
     echo -e "${GREEN}✓ Version is already bumped and staged.${NC}"
     exit 0
 fi

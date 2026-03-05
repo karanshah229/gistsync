@@ -182,6 +182,8 @@ func (e *Engine) ReadLocalDir(absPath string) ([]File, error) {
 		}
 
 		rel, _ := filepath.Rel(absPath, path)
+		// Ensure gists always use forward slashes for cross-platform compatibility
+		rel = filepath.ToSlash(rel)
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return err

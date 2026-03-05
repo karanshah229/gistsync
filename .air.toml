@@ -5,7 +5,7 @@ tmp_dir = "tmp"
 [build]
   args_bin = []
   main = "main.go"
-  full_bin = "gistsync version"
+  full_bin = "gistsync -v"
   cmd = "make install"
   delay = 1000
   include_ext = ["go", "tpl", "tmpl", "html", "toml"]
