@@ -9,15 +9,26 @@
     - Install: `brew install gh`
     - Login: `gh auth login`
 
-## Build Instructions
+## Installation
 
-To build the project from source:
+To install `gistsync` globally on your system:
 
+### One-liner
 ```bash
-go build -o gistsync main.go
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/karanshah229/gistsync/main/scripts/install.sh)"
 ```
 
-This will produce a `gistsync` binary in the current directory.
+### From Source (Makefile)
+```bash
+git clone https://github.com/karanshah229/gistsync.git
+cd gistsync
+make install
+```
+
+### Go Install
+```bash
+go install github.com/karanshah229/gistsync@latest
+```
 
 ## Running the App
 
