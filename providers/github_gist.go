@@ -131,3 +131,20 @@ func (p *GitHubProvider) CheckRateLimit() (int, time.Time, error) {
 	return res.Resources.Core.Remaining, time.Unix(res.Resources.Core.Reset, 0), nil
 }
 
+func (p *GitHubProvider) Verify() (bool, string, error) {
+	// 1. Check if 'gh' is in PATH
+	_, err := exec.LookPath("gh")
+	if err != nil {
+		return false, "GitHub CLI (gh) not found in PATH", nil
+	}
+
+	// 2. Check auth status
+	cmd := exec.Command("gh", "auth", "status")
+	out, err := cmd.CombinedOutput()
+	output := string(out)
+	if err != nil {
+		return false, "GitHub CLI is not authenticated. Please run 'gh auth login'.", nil
+	}
+
+	return true, output, nil
+}

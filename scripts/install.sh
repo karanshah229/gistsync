@@ -56,4 +56,22 @@ else
 fi
 
 echo "Successfully installed $BINARY_NAME $LATEST_VERSION to $INSTALL_DIR"
+
+# Verify Provider Setup
+echo "------------------------------------------------"
+echo "🔍 Checking Provider Setup (GitHub CLI)..."
+if command -v gh >/dev/null 2>&1; then
+    if gh auth status >/dev/null 2>&1; then
+        echo "✅ GitHub CLI found and authenticated."
+    else
+        echo "⚠ WARNING: GitHub CLI is installed but NOT authenticated."
+        echo "   Please run 'gh auth login' to use gistsync."
+    fi
+else
+    echo "❌ ERROR: GitHub CLI (gh) not found."
+    echo "   gistsync requires the GitHub CLI for authentication."
+    echo "   Install it from: https://cli.github.com/"
+fi
+echo "------------------------------------------------"
+
 gistsync --help

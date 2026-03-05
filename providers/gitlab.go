@@ -35,3 +35,6 @@ func (p *GitLabProvider) CheckRateLimit() (int, time.Time, error) {
 	return 1000, time.Now().Add(time.Hour), nil // Placeholder
 }
 
+func (p *GitLabProvider) Verify() (bool, string, error) {
+	return false, "GitLab provider not implemented yet", nil
+}

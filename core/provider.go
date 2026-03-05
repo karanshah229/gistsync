@@ -14,4 +14,6 @@ type Provider interface {
 	Delete(remoteID string) error
 	// CheckRateLimit returns remaining requests, reset time, and error
 	CheckRateLimit() (int, time.Time, error)
+	// Verify checks if the provider is correctly setup (e.g., auth, dependencies)
+	Verify() (bool, string, error)
 }
