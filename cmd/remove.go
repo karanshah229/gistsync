@@ -15,32 +15,29 @@ var removeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		path := args[0]
 		
-		state, err := core.LoadState()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading state: %v\n", err)
-			os.Exit(1)
-		}
-
 		absPath, _ := core.GetAbsPath(path) // I should add a helper or just use filepath.Abs
 		
-		newMappings := []core.Mapping{}
-		found := false
-		for _, m := range state.Mappings {
-			if m.LocalPath == absPath {
-				found = true
-				continue
+		err := core.WithLock(func(state *core.State) error {
+			newMappings := []core.Mapping{}
+			found := false
+			for _, m := range state.Mappings {
+				if m.LocalPath == absPath {
+					found = true
+					continue
+				}
+				newMappings = append(newMappings, m)
 			}
-			newMappings = append(newMappings, m)
-		}
 
-		if !found {
-			fmt.Printf("Path %s is not being tracked.\n", path)
-			return
-		}
+			if !found {
+				return fmt.Errorf("path %s is not being tracked", path)
+			}
 
-		state.Mappings = newMappings
-		if err := state.Save(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
+			state.Mappings = newMappings
+			return nil // WithLock will call Save()
+		})
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
 

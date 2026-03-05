@@ -13,6 +13,7 @@ type Mapping struct {
 	RemoteID       string `json:"remote_id"`
 	Provider       string `json:"provider"`
 	IsFolder       bool   `json:"is_folder"`
+	Public         bool   `json:"public"`
 	LastSyncedHash string `json:"last_synced_hash"`
 }
 

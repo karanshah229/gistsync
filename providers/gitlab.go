@@ -15,7 +15,7 @@ func NewGitLabProvider() *GitLabProvider {
 
 var _ core.Provider = (*GitLabProvider)(nil)
 
-func (p *GitLabProvider) Create(files []core.File) (string, error) {
+func (p *GitLabProvider) Create(files []core.File, public bool) (string, error) {
 	return "", errors.New("GitLab provider not implemented yet")
 }
 

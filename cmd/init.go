@@ -32,30 +32,46 @@ var initCmd = &cobra.Command{
 		provider := providers.NewGitHubProvider()
 		engine := core.NewEngine(state, provider)
 
-		// Call the internal initialSync (I might need to export it or just use SyncFile/SyncDir)
-		// Since SyncFile/SyncDir call initialSync if no mapping exists, we can just call them.
-		info, err := os.Stat(path)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		public, _ := cmd.Flags().GetBool("public")
+		private, _ := cmd.Flags().GetBool("private")
+
+		if public && private {
+			fmt.Fprintf(os.Stderr, "Error: cannot specify both --public and --private\n")
 			os.Exit(1)
 		}
 
-		if info.IsDir() {
-			err = engine.SyncDir(path)
-		} else {
-			err = engine.SyncFile(path)
-		}
-
+		// Default to private (isPublic = false) if no flags are specified.
+		isPublic := public
+		
+		err = engine.InitialSyncWithVisibility(absPath, isPublic)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Initialization failed: %v\n", err)
 			os.Exit(1)
 		}
 
+		// Reload state to get the fresh mapping added by engine
+		state, err = core.LoadState()
+		if err != nil {
+			fmt.Printf("Warning: Gist created but failed to reload state: %v\n", err)
+			return
+		}
+
 		mapping := state.GetMapping(absPath)
-		fmt.Printf("Initialized sync for %s (Gist ID: %s)\n", absPath, mapping.RemoteID)
+		if mapping == nil {
+			fmt.Println("Initialization successful, but could not retrieve mapping details.")
+			return
+		}
+
+		visibility := "private"
+		if mapping.Public {
+			visibility = "public"
+		}
+		fmt.Printf("Initialized %s sync for %s (Gist ID: %s)\n", visibility, absPath, mapping.RemoteID)
 	},
 }
 
 func init() {
+	initCmd.Flags().Bool("public", false, "Create a public gist")
+	initCmd.Flags().Bool("private", false, "Create a private gist (default)")
 	rootCmd.AddCommand(initCmd)
 }

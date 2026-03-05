@@ -46,12 +46,6 @@ var syncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Force a save to ensure last_synced_hash is updated even for NOOPs
-		if err := state.Save(); err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to save state: %v\n", err)
-			os.Exit(1)
-		}
-
 		fmt.Println("Sync successful!")
 	},
 }

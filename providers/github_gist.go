@@ -19,12 +19,17 @@ func NewGitHubProvider() *GitHubProvider {
 // Ensure GitHubProvider implements core.Provider
 var _ core.Provider = (*GitHubProvider)(nil)
 
-func (p *GitHubProvider) Create(files []core.File) (string, error) {
+func (p *GitHubProvider) Create(files []core.File, public bool) (string, error) {
 	if len(files) == 0 {
 		return "", fmt.Errorf("no files to create gist with")
 	}
 
-	cmd := exec.Command("gh", "gist", "create", "-", "-f", files[0].Path)
+	args := []string{"gist", "create", "-", "-f", files[0].Path}
+	if public {
+		args = append(args, "--public")
+	}
+
+	cmd := exec.Command("gh", args...)
 	cmd.Stdin = strings.NewReader(string(files[0].Content))
 	
 	out, err := cmd.CombinedOutput()
@@ -95,8 +100,12 @@ func (p *GitHubProvider) Fetch(remoteID string) ([]core.File, error) {
 
 
 func (p *GitHubProvider) Delete(remoteID string) error {
-	cmd := exec.Command("gh", "gist", "delete", remoteID, "-y")
-	return cmd.Run()
+	cmd := exec.Command("gh", "gist", "delete", remoteID, "--yes")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to delete gist: %w (output: %s)", err, string(out))
+	}
+	return nil
 }
 
 func (p *GitHubProvider) CheckRateLimit() (int, time.Time, error) {
