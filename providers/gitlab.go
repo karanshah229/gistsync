@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/karan/gistsync/core"
+	"github.com/karanshah229/gistsync/core"
 )
 
 type GitLabProvider struct{}

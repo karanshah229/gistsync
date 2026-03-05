@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/karan/gistsync/core"
+	"github.com/karanshah229/gistsync/core"
 )
 
 type GitHubProvider struct{}

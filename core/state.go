@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/karan/gistsync/internal"
+	"github.com/karanshah229/gistsync/internal"
 )
 
 // LoadState loads the current state from the config directory

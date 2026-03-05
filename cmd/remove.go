@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/karan/gistsync/core"
+	"github.com/karanshah229/gistsync/core"
 	"github.com/spf13/cobra"
 )
 

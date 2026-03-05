@@ -5,7 +5,7 @@ gistsync is a CLI application that syncs local files or folders to GitHub Gists,
 ## Proposed Changes
 
 ### Project Initialization
-- Initialize Go module `github.com/karan/gistsync` (or similar).
+- Initialize Go module `github.com/karanshah229/gistsync` (or similar).
 - Create directory structure: `cmd/`, `core/`, `providers/`, `watcher/`, `internal/`.
 - Add basic `main.go` and `go.mod`.
 

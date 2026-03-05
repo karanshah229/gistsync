@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/karan/gistsync/core"
-	"github.com/karan/gistsync/providers"
-	"github.com/karan/gistsync/watcher"
+	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/providers"
+	"github.com/karanshah229/gistsync/watcher"
 	"github.com/spf13/cobra"
 )
 

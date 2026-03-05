@@ -27,7 +27,7 @@ gistsync/
 The project was successfully built into a static binary:
 - **Build Command**: `go build -o gistsync main.go`
 - **Tests**: Unit tests for hashing and sync decision logic pass.
-  - `go test ./core/...` -> `ok github.com/karan/gistsync/core`
+  - `go test ./core/...` -> `ok github.com/karanshah229/gistsync/core`
 
 ## How to Use
 1. **Initialize Sync**: `gistsync init <file or directory>`
