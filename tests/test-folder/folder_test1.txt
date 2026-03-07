@@ -1,2 +1,2 @@
-folder test file 1
+folder test file 1.1
 Both files changed 1.2

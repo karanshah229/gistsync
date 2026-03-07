@@ -2,8 +2,11 @@ package cmd
 
 import (
 	_ "embed"
+	"fmt"
 	"os"
 
+	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/internal"
 	"github.com/spf13/cobra"
 )
 
@@ -25,6 +28,21 @@ func Execute() {
 
 func init() {
 	rootCmd.SetVersionTemplate("gistsync version {{.Version}}\n")
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		// Skip check for commands that don't need config
+		if cmd.Name() == "init" || cmd.Name() == "help" || cmd.Name() == "version" || cmd.Name() == "completion" {
+			return nil
+		}
+
+		// Strictly check if config and state are present and valid
+		_, configErr := internal.LoadConfig()
+		_, stateErr := core.LoadState()
+
+		if configErr != nil || stateErr != nil {
+			return fmt.Errorf("configuration or state is missing or malformed. Please run 'gistsync init' to set up the tool")
+		}
+		return nil
+	}
 }
 
 // SetVersion allows main.go to inject the embedded VERSION content

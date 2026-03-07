@@ -19,6 +19,6 @@ type Mapping struct {
 
 // State represents the local state of all mappings
 type State struct {
-	Version  int       `json:"version"`
+	Version  string    `json:"version"`
 	Mappings []Mapping `json:"mappings"`
 }
