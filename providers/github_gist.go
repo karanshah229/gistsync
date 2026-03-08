@@ -20,52 +20,81 @@ func NewGitHubProvider() *GitHubProvider {
 var _ core.Provider = (*GitHubProvider)(nil)
 
 func (p *GitHubProvider) Create(files []core.File, public bool) (string, error) {
-	if len(files) == 0 {
-		return "", fmt.Errorf("no files to create gist with")
+	filtered := p.filterEmptyFiles(files)
+	if len(filtered) == 0 {
+		return "", fmt.Errorf("cannot sync: all provided files are empty, and GitHub Gists do not support blank files")
 	}
 
-	args := []string{"gist", "create", "-", "-f", files[0].Path}
-	if public {
-		args = append(args, "--public")
+	payload := map[string]interface{}{
+		"public": public,
+		"files":  p.makeFilesMap(filtered),
+	}
+	
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal gist create payload: %w", err)
 	}
 
-	cmd := exec.Command("gh", args...)
-	cmd.Stdin = strings.NewReader(string(files[0].Content))
+	cmd := exec.Command("gh", "api", "gists", "--input", "-")
+	cmd.Stdin = strings.NewReader(string(jsonData))
 	
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("failed to create gist: %w (output: %s)", err, string(out))
 	}
 
-	gistURL := strings.TrimSpace(string(out))
-	parts := strings.Split(gistURL, "/")
-	id := parts[len(parts)-1]
-
-	if len(files) > 1 {
-		if err := p.Update(id, files[1:]); err != nil {
-			return id, err
-		}
+	var res struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(out, &res); err != nil {
+		return "", fmt.Errorf("failed to parse gist create response: %w", err)
 	}
 
-	return id, nil
+	return res.ID, nil
 }
 
 func (p *GitHubProvider) Update(remoteID string, files []core.File) error {
-	if len(files) == 0 {
+	filtered := p.filterEmptyFiles(files)
+	if len(filtered) == 0 {
 		return nil
 	}
 
-	args := []string{"api", "-X", "PATCH", fmt.Sprintf("gists/%s", remoteID)}
-	for _, f := range files {
-		args = append(args, "-F", fmt.Sprintf("files[%s][content]=%s", f.Path, string(f.Content)))
+	payload := map[string]interface{}{
+		"files": p.makeFilesMap(filtered),
 	}
 
-	cmd := exec.Command("gh", args...)
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal gist update payload: %w", err)
+	}
+
+	cmd := exec.Command("gh", "api", "-X", "PATCH", fmt.Sprintf("gists/%s", remoteID), "--input", "-")
+	cmd.Stdin = strings.NewReader(string(jsonData))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to update gist %s using api: %w (output: %s)", remoteID, err, string(out))
+		return fmt.Errorf("failed to update gist %s: %w (output: %s)", remoteID, err, string(out))
 	}
 	return nil
+}
+
+func (p *GitHubProvider) filterEmptyFiles(files []core.File) []core.File {
+	var filtered []core.File
+	for _, f := range files {
+		if len(strings.TrimSpace(string(f.Content))) > 0 {
+			filtered = append(filtered, f)
+		}
+	}
+	return filtered
+}
+
+func (p *GitHubProvider) makeFilesMap(files []core.File) map[string]interface{} {
+	filesMap := make(map[string]interface{})
+	for _, f := range files {
+		filesMap[f.Path] = map[string]string{
+			"content": string(f.Content),
+		}
+	}
+	return filesMap
 }
 
 func (p *GitHubProvider) Fetch(remoteID string) ([]core.File, error) {

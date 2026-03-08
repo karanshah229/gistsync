@@ -52,13 +52,24 @@ func (w *Watcher) Start() error {
 			if !ok {
 				return nil
 			}
-			if event.Has(fsnotify.Write) {
+			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) || event.Has(fsnotify.Rename) {
 				lastPath = event.Name
 				debounceTimer.Reset(time.Duration(w.Config.WatchDebounce) * time.Millisecond)
 			}
 		case <-debounceTimer.C:
+			fmt.Printf("Debounce triggered for %s\n", lastPath)
 			// Differentiate between real local changes and remote poll updates via hash
 			mapping := w.Engine.State.GetMapping(lastPath)
+			if mapping == nil {
+				// Search for parent mapping if it's a file in a folder
+				for _, m := range w.Engine.State.Mappings {
+					if m.IsFolder && (lastPath == m.LocalPath || filepath.Dir(lastPath) == m.LocalPath) {
+						mapping = &m
+						fmt.Printf("Found parent mapping %s for %s\n", m.LocalPath, lastPath)
+						break
+					}
+				}
+			}
 			if mapping != nil {
 				var currentHash string
 				var err error
@@ -71,8 +82,11 @@ func (w *Watcher) Start() error {
 					currentHash, err = core.ComputeFileHash(lastPath)
 				}
 
-				if err == nil && currentHash == mapping.LastSyncedHash {
+				configDir, _ := internal.GetConfigDir()
+				if err == nil && currentHash == mapping.LastSyncedHash && mapping.LocalPath != configDir {
 					// Hash matches LastSyncedHash -> this was likely a remote pull, skip message
+					// EXCEPT for the config directory, where we want to sync even if content hasn't changed
+					// (because state.json itself might have changed)
 					continue
 				}
 			}

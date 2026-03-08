@@ -1,10 +1,13 @@
 package core
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/karanshah229/gistsync/internal"
 )
 
 type Engine struct {
@@ -70,8 +73,11 @@ func (e *Engine) SyncFile(localPath string) error {
 
 	switch action {
 	case ActionNoop:
-		mapping.LastSyncedHash = localHash
-		return e.State.Save()
+		if mapping.LastSyncedHash != localHash {
+			mapping.LastSyncedHash = localHash
+			return e.State.Save()
+		}
+		return nil
 	case ActionPush:
 		content, err := os.ReadFile(absPath)
 		if err != nil {
@@ -126,16 +132,79 @@ func (e *Engine) SyncDir(localPath string) error {
 	}
 
 	currentLocalHash := e.ComputeDirHash(localFiles)
-	remoteHash := e.ComputeDirHash(remoteFiles)
+	
+	// Filter remote files to exclude state.json for consistent hash comparison
+	var filteredRemote []File
+	configDir, _ := internal.GetConfigDir()
+	for _, f := range remoteFiles {
+		if absPath == configDir && (f.Path == "state.json" || f.Path == "state.json.lock") {
+			continue
+		}
+		filteredRemote = append(filteredRemote, f)
+	}
+	remoteHash := e.ComputeDirHash(filteredRemote)
 	
 	action := DetermineAction(currentLocalHash, remoteHash, mapping.LastSyncedHash) 
 
+	// Special case for config directory: if content is same, but state.json is missing or different in gist,
+	// we still want to push (ActionPush) to ensure our backup is current.
+	if action == ActionNoop && absPath == configDir {
+		stateInGist := false
+		var remoteStateContent []byte
+		for _, f := range remoteFiles {
+			if f.Path == "state.json" {
+				stateInGist = true
+				remoteStateContent = f.Content
+				break
+			}
+		}
+
+		localStateJSON, _ := json.MarshalIndent(e.State, "", "  ")
+		
+		// Robust comparison: Unmarshal both and compare (or just compare raw if we trust Marshaler)
+		// For now, let's try a simple string comparison but ensure we project correctly.
+		if !stateInGist || string(remoteStateContent) != string(localStateJSON) {
+			action = ActionPush
+		}
+	}
+
 	switch action {
 	case ActionNoop:
-		mapping.LastSyncedHash = currentLocalHash
-		return e.State.Save()
+		if mapping.LastSyncedHash != currentLocalHash {
+			mapping.LastSyncedHash = currentLocalHash
+			return e.State.Save()
+		}
+		return nil
 	case ActionPush:
-		err = e.Provider.Update(mapping.RemoteID, localFiles)
+		uploadFiles := localFiles
+		if absPath == configDir {
+			// Virtual State Projection: Inject CURRENT state into backup
+			// We update the hash BEFORE marshaling so that the projected state.json
+			// matches exactly what will be saved locally.
+			mapping.LastSyncedHash = currentLocalHash
+			stateJSON, err := json.MarshalIndent(e.State, "", "  ")
+			if err == nil {
+				// Avoid duplicates if it was already in localFiles (though ReadLocalDir should have excluded it)
+				found := false
+				for i, f := range uploadFiles {
+					if f.Path == "state.json" {
+						uploadFiles[i].Content = stateJSON
+						uploadFiles[i].Hash = ComputeHash(stateJSON)
+						found = true
+						break
+					}
+				}
+				if !found {
+					uploadFiles = append(uploadFiles, File{
+						Path:    "state.json",
+						Content: stateJSON,
+						Hash:    ComputeHash(stateJSON),
+					})
+				}
+			}
+		}
+
+		err = e.Provider.Update(mapping.RemoteID, uploadFiles)
 		if err != nil {
 			return err
 		}
@@ -166,6 +235,9 @@ func (e *Engine) SyncDir(localPath string) error {
 
 
 func (e *Engine) ReadLocalDir(absPath string) ([]File, error) {
+	configDir, _ := internal.GetConfigDir()
+	isConfigDir := absPath == configDir
+
 	var files []File
 	err := filepath.Walk(absPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -178,6 +250,11 @@ func (e *Engine) ReadLocalDir(absPath string) ([]File, error) {
 			return nil
 		}
 		if strings.HasPrefix(info.Name(), ".") {
+			return nil
+		}
+
+		// Exclude state files only if in config directory
+		if isConfigDir && (info.Name() == "state.json" || info.Name() == "state.json.lock") {
 			return nil
 		}
 
@@ -216,31 +293,51 @@ func (e *Engine) initialSync(absPath string, public bool) error {
 	var files []File
 	isFolder := info.IsDir()
 
+	var hash string
 	if isFolder {
 		var err error
 		files, err = e.ReadLocalDir(absPath)
 		if err != nil {
 			return err
 		}
+		hash = e.ComputeDirHash(files)
 	} else {
 		content, err := os.ReadFile(absPath)
 		if err != nil {
 			return err
 		}
-		hash := ComputeHash(content)
+		hash = ComputeHash(content)
 		files = append(files, File{Path: filepath.Base(absPath), Content: content, Hash: hash})
 	}
 
-	remoteID, err := e.Provider.Create(files, public)
-	if err != nil {
-		return err
+	uploadFiles := files
+	configDir, _ := internal.GetConfigDir()
+	if absPath == configDir {
+		// Virtual State Projection for initial sync:
+		// We need to include the mapping we are ABOUT to create.
+		tempState := *e.State
+		tempState.Mappings = append(append([]Mapping{}, e.State.Mappings...), Mapping{
+			LocalPath:      absPath,
+			RemoteID:       "PENDING", // Provider will use the created ID, but for content comparison, any stable ID works
+			Provider:       "github",
+			IsFolder:       isFolder,
+			Public:         public,
+			LastSyncedHash: hash,
+		})
+
+		stateJSON, err := json.MarshalIndent(tempState, "", "  ")
+		if err == nil {
+			uploadFiles = append(uploadFiles, File{
+				Path:    "state.json",
+				Content: stateJSON,
+				Hash:    ComputeHash(stateJSON),
+			})
+		}
 	}
 
-	var hash string
-	if isFolder {
-		hash = e.ComputeDirHash(files)
-	} else {
-		hash = files[0].Hash
+	remoteID, err := e.Provider.Create(uploadFiles, public)
+	if err != nil {
+		return err
 	}
 
 	return e.State.AddMapping(Mapping{

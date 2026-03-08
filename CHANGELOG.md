@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.2.0] - 2026-03-08
+- feat: Atomic virutal projection, sync and watch config dir, fix dir sync
+
 ## [0.1.1] - 2026-03-08
 - fix: fsync os page cache to improve crash safety for atomic writes
 
