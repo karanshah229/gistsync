@@ -22,8 +22,8 @@ if git diff --cached --name-only | grep -q "^${VERSION_FILE}$"; then
 fi
 
 echo -e "${YELLOW}⚠ Version not bumped in this commit.${NC}"
-read -p "Do you want to bump the version and add a changelog entry? [y/N] " -r < /dev/tty
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+read -p "Do you want to bump the version and add a changelog entry? [Y/n] " -r < /dev/tty
+if [[ ! $REPLY =~ ^[Yy]?$ ]]; then
     echo -e "${BLUE}Skipping version bump.${NC}"
     exit 0
 fi

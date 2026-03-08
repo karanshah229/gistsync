@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.1.1] - 2026-03-08
+- fix: fsync os page cache to improve crash safety for atomic writes
+
 ## [0.1.0] - 2026-03-07
 - feat: Add init phase
 
