@@ -75,3 +75,7 @@ fi
 echo "------------------------------------------------"
 
 gistsync --help
+
+echo ""
+echo "✨ Next steps: Run 'gistsync init' to initialize all the configs and state."
+echo ""

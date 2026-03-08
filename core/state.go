@@ -17,13 +17,6 @@ func LoadState() (*State, error) {
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// Return empty state if file doesn't exist
-			return &State{
-				Version:  1,
-				Mappings: []Mapping{},
-			}, nil
-		}
 		return nil, err
 	}
 

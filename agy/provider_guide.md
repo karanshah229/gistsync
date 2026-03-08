@@ -7,7 +7,7 @@
 The quickest way to check if your setup is healthy is by running:
 
 ```bash
-gistsync provider test
+gistsync provider github test
 ```
 
 This command performs a series of checks:
@@ -45,4 +45,4 @@ type Provider interface {
 
 ---
 
-If `provider test` fails, check the error message for specific instructions on how to resolve the issue (e.g., logging in or installing dependencies). 🏔️
+If `provider github test` fails, check the error message for specific instructions on how to resolve the issue (e.g., logging in or installing dependencies). 🏔️

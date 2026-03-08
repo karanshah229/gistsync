@@ -29,23 +29,25 @@ make install
 go install github.com/karanshah229/gistsync@latest
 ```
 
-## Running the App
+## Usage
 
-### 1. Initialize Sync
-To start tracking a file or folder:
+### 1. Initialize Tool
+Before using `gistsync`, you must initialize the configuration and state:
 ```bash
-gistsync init path/to/file_or_folder
+gistsync init
 ```
--   **Visibility**: Use `--public` for public gists (Defaults to Private/Secret).
-    ```bash
-    gistsync init my_folder --public
-    ```
+This will check for provider connectivity and interactively prompt for settings.
 
-### 2. Manual Sync
-To sync changes manually:
+### 2. Sync File or Folder
+To start tracking and syncing a path:
 ```bash
 gistsync sync path/to/file_or_folder
 ```
+-   **Initial Sync**: If the path is not yet tracked, it will create a new Gist.
+-   **Visibility**: Use `--public` for public gists (Defaults to Private/Secret).
+    ```bash
+    gistsync sync my_folder --public
+    ```
 
 ### 3. Change Visibility
 You can change the visibility of a tracked path at any time. This uses our **Transactional Engine** to safely recreate the Gist without losing your local state.
@@ -63,6 +65,20 @@ gistsync watch
 ```bash
 gistsync status
 gistsync --version
+```
+
+### 6. Provider Diagnostics
+```bash
+gistsync provider github test
+gistsync provider info
+```
+
+## Uninstallation
+
+To completely remove `gistsync` from your system:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/karanshah229/gistsync/main/scripts/uninstall.sh)"
 ```
 
 ## Contributing

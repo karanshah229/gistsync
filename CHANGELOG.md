@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.1.0] - 2026-03-07
+- feat: Add init phase
+
 ## [0.0.11] - 2026-03-05
 - feat: Add provider testing
 
