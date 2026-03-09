@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/karanshah229/gistsync/providers"
 	"github.com/spf13/cobra"
 )
@@ -19,12 +19,12 @@ var visibilityCmd = &cobra.Command{
 		privateFlag, _ := cmd.Flags().GetBool("private")
 
 		if publicFlag && privateFlag {
-			fmt.Println("Error: cannot specify both --public and --private")
+			ui.Error("PublicPrivateConflict", nil)
 			os.Exit(1)
 		}
 
 		if !publicFlag && !privateFlag {
-			fmt.Println("Error: must specify either --public or --private")
+			ui.Error("PublicPrivateMissing", nil)
 			os.Exit(1)
 		}
 
@@ -32,7 +32,7 @@ var visibilityCmd = &cobra.Command{
 
 		state, err := core.LoadState()
 		if err != nil {
-			fmt.Printf("Error loading state: %v\n", err)
+			ui.Error("LoadStateFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 
@@ -44,17 +44,17 @@ var visibilityCmd = &cobra.Command{
 			targetName = "public"
 		}
 
-		fmt.Printf("Changing visibility of %s to %s...\n", path, targetName)
+		ui.Print("ChangingVisibility", map[string]interface{}{"Path": path, "Visibility": targetName})
 		if !isPublic {
-			fmt.Println("Note: Converting Public to Private requires recreating the gist. The Gist ID will change.")
+			ui.Info("PrivateConversionNote", nil)
 		}
 
 		if err := engine.SetVisibility(path, isPublic); err != nil {
-			fmt.Printf("Error: %v\n", err)
+			ui.Error("VisibilityChangeError", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 
-		fmt.Printf("Successfully changed visibility to %s\n", targetName)
+		ui.Success("VisibilityChangeSuccess", map[string]interface{}{"Visibility": targetName})
 	},
 }
 

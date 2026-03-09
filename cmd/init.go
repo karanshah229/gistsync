@@ -13,6 +13,7 @@ import (
 	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal"
 	"github.com/karanshah229/gistsync/internal/storage"
+	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/karanshah229/gistsync/providers"
 	"github.com/spf13/cobra"
 )
@@ -23,16 +24,16 @@ var initCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		if internal.IsConfigPresent() {
-			if !internal.Confirm("⚠️  Configuration already exists. Overwrite?") {
-				fmt.Println("Aborted.")
+			if !ui.Confirm("ConfirmQuestion", map[string]interface{}{"Message": "⚠️  Configuration already exists. Overwrite?"}) {
+				ui.Print("Aborted", nil)
 				return
 			}
 		}
 
-		fmt.Println("🚀 Initializing gistsync...")
+		ui.Print("Initializing", nil)
 
 		// 1. Check Providers
-		fmt.Println("\n🔍 Checking Providers...")
+		ui.Header("CheckingProviders", nil)
 		gh := providers.NewGitHubProvider()
 		gl := providers.NewGitLabProvider()
 
@@ -41,28 +42,28 @@ var initCmd = &cobra.Command{
 
 		connectedProviders := []string{}
 		if ghOk {
-			fmt.Printf("✅ GitHub: Connected (%s)\n", strings.TrimSpace(ghMsg))
+			ui.Success("GitHubConnected", map[string]interface{}{"Msg": strings.TrimSpace(ghMsg)})
 			connectedProviders = append(connectedProviders, "github")
 		} else {
-			fmt.Printf("❌ GitHub: Not Connected (%s)\n", strings.TrimSpace(ghMsg))
+			ui.Error("GitHubNotConnected", map[string]interface{}{"Msg": strings.TrimSpace(ghMsg)})
 		}
 
 		if glOk {
-			fmt.Printf("✅ GitLab: Connected (%s)\n", strings.TrimSpace(glMsg))
+			ui.Success("GitLabConnected", map[string]interface{}{"Msg": strings.TrimSpace(glMsg)})
 			connectedProviders = append(connectedProviders, "gitlab")
 		} else {
-			fmt.Printf("❌ GitLab: Not Connected (%s)\n", strings.TrimSpace(glMsg))
+			ui.Error("GitLabNotConnected", map[string]interface{}{"Msg": strings.TrimSpace(glMsg)})
 		}
 
 		if len(connectedProviders) == 0 {
-			fmt.Println("\n💡 No providers are connected. Please set up a provider first.")
+			ui.Info("NoProvidersConnected", nil)
 			showProviderInfo()
 			return
 		}
 
 		// 2. Optional Restore
 		restored := false
-		wantRestore := internal.Confirm("Would you like to restore configurations from a provider?")
+		wantRestore := ui.Confirm("ConfirmQuestion", map[string]interface{}{"Message": "Would you like to restore configurations from a provider?"})
 
 		if wantRestore {
 			var selectedRestoreProvider string
@@ -85,9 +86,9 @@ var initCmd = &cobra.Command{
 
 			ok, err := internal.RestoreConfig(p)
 			if err != nil {
-				fmt.Printf("❌ Restoration failed: %v\n", err)
+				ui.Error("RestorationFailed", map[string]interface{}{"Err": err})
 			} else if ok {
-				fmt.Println("\n✅ Configurations restored successfully!")
+				ui.Success("RestorationSuccess", nil)
 				restored = true
 
 				// Post-restore actions: Auto-repair paths
@@ -105,24 +106,27 @@ var initCmd = &cobra.Command{
 							}
 						}
 						if repairedCount > 0 || missingCount > 0 {
-							fmt.Printf("🔧 Auto-repaired paths: %d repaired, %d missing.\n", repairedCount, missingCount)
+							ui.Print("AutoRepairedPaths", map[string]interface{}{
+								"Repaired": repairedCount,
+								"Missing":  missingCount,
+							})
 							if repairedCount > 0 {
-								fmt.Println("   Use 'gistsync config repair' to see details.")
+								ui.Print("RepairDetailsHint", nil)
 							}
 						}
 					}
 				}
 
-				wantSync := internal.Confirm("Would you like to run sync now?")
+				wantSync := ui.Confirm("ConfirmQuestion", map[string]interface{}{"Message": "Would you like to run sync now?"})
 				if wantSync {
-					fmt.Println("🔄 Running sync...")
+					ui.Print("RunningSync", nil)
 					internal.SyncAll(core.NewEngine(state, p))
 				}
 				
-				fmt.Println("\n🎉 gistsync is ready!")
+				ui.Success("Ready", nil)
 				return
 			} else {
-				fmt.Println("⚠️  No backup found in the selected provider. Continuing with normal initialization.")
+				ui.Warning("NoBackupFound", nil)
 			}
 		}
 
@@ -141,10 +145,8 @@ var initCmd = &cobra.Command{
 		}
 
 		// 3. Select Default Provider
-		fmt.Println("\n🎯 Default Provider Selection")
-		fmt.Println("   The default provider is used for:")
-		fmt.Println("   - Fast sync: used when no provider is specified in commands.")
-		fmt.Println("   - Backup: your configuration and state will be backed up to this provider.")
+		ui.Header("DefaultProviderTitle", nil)
+		ui.Print("DefaultProviderUsage", nil)
 
 		var selectedProvider string
 		prompt := &survey.Select{
@@ -154,18 +156,18 @@ var initCmd = &cobra.Command{
 		}
 
 		if err := survey.AskOne(prompt, &selectedProvider); err != nil {
-			fmt.Printf("❌ Selection failed: %v. Defaulting to github.\n", err)
+			ui.Error("SelectionFailed", map[string]interface{}{"Err": err})
 			selectedProvider = "github"
 		}
 		config.DefaultProvider = selectedProvider
-		fmt.Printf("✅ Selected: %s\n", selectedProvider)
+		ui.Success("SelectedProvider", map[string]interface{}{"Provider": selectedProvider})
 
 		// 4. Interactive Config
-		fmt.Println("\n⚙️  Configuration Setup")
+		ui.Header("ConfigSetupTitle", nil)
 		options := internal.GetConfigOptions()
 		for _, opt := range options {
 			for {
-				fmt.Printf("%s [%v]: ", opt.Prompt, opt.Default)
+				ui.Printf("ConfigPrompt", map[string]interface{}{"Prompt": opt.Prompt, "Default": opt.Default})
 				input, _ := reader.ReadString('\n')
 				input = strings.TrimSpace(input)
 
@@ -176,13 +178,13 @@ var initCmd = &cobra.Command{
 				}
 
 				if input == "?" || strings.ToLower(input) == "help" {
-					fmt.Printf("   💡 %s\n", opt.Description)
+					ui.Info("ConfigHelp", map[string]interface{}{"Description": opt.Description})
 					continue
 				}
 
 				// Try to parse input
 				if err := updateField(config, opt.Key, input); err != nil {
-					fmt.Printf("   ❌ Invalid input: %v. Please try again or press ENTER for default.\n", err)
+					ui.Error("InvalidInput", map[string]interface{}{"Err": err})
 					continue
 				}
 				break
@@ -191,16 +193,16 @@ var initCmd = &cobra.Command{
 
 		// 5. Save Config
 		if err := internal.SaveConfig(config); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Failed to save config: %v\n", err)
+			ui.Error("SaveConfigFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
-		fmt.Println("\n✅ Configuration saved to config.json")
+		ui.Success("ConfigSaved", nil)
 		if config.Autostart {
-			fmt.Println("🚀 Enabling autostart...")
+			ui.Print("EnablingAutostart", nil)
 			if err := internal.InstallAutostart(); err != nil {
-				fmt.Printf("⚠️  Failed to enable autostart: %v\n", err)
+				ui.Warning("AutostartFailed", map[string]interface{}{"Err": err})
 			} else {
-				fmt.Println("✅ Autostart enabled successfully!")
+				ui.Success("AutostartEnabled", nil)
 			}
 		}
 
@@ -224,15 +226,15 @@ var initCmd = &cobra.Command{
 
 		data, _ := json.MarshalIndent(initialState, "", "  ")
 		if err := storage.WriteAtomic(statePath, data); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Failed to initialize state: %v\n", err)
+			ui.Error("StateInitFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
-		fmt.Println("✅ State initialized in state.json")
+		ui.Success("StateInitialized", nil)
 
 		// 7. Optional Backup (only if not restored)
 		if !restored {
-			if internal.Confirm("Would you like to backup your configuration to the default provider?") {
-				fmt.Println("📤 Backing up configuration...")
+			if ui.Confirm("ConfirmQuestion", map[string]interface{}{"Message": "Would you like to backup your configuration to the default provider?"}) {
+				ui.Print("BackingUpConfig", nil)
 				configDir, _ := storage.GetConfigDir()
 				
 				// Re-load state to get any changes
@@ -246,14 +248,14 @@ var initCmd = &cobra.Command{
 				engine := core.NewEngine(state, p)
 				
 				if err := engine.SyncDir(configDir); err != nil {
-					fmt.Printf("❌ Backup failed: %v\n", err)
+					ui.Error("BackupFailed", map[string]interface{}{"Err": err})
 				} else {
-					fmt.Println("✅ Backup successful!")
+					ui.Success("BackupSuccess", nil)
 				}
 			}
 		}
 
-		fmt.Println("\n🎉 gistsync is ready! Use 'gistsync sync <path>' to start syncing.")
+		ui.Success("ReadyWithHint", nil)
 	},
 }
 

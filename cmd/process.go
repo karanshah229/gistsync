@@ -6,6 +6,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +26,7 @@ var processListCmd = &cobra.Command{
 		}
 
 		if len(procs) == 0 {
-			fmt.Println("No running gistsync processes found.")
+			ui.Print("NoProcessesFound", nil)
 			return
 		}
 
@@ -51,9 +52,9 @@ var processKillOthersCmd = &cobra.Command{
 		}
 
 		if killed == 0 {
-			fmt.Println("No other gistsync processes were running.")
+			ui.Print("NoOtherProcessesRunning", nil)
 		} else {
-			fmt.Printf("✅ Successfully killed %d other gistsync process(es).\n", killed)
+			ui.Success("KilledOtherProcesses", map[string]interface{}{"Count": killed})
 		}
 	},
 }

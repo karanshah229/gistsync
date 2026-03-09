@@ -10,7 +10,7 @@ setup_test_env
 # 1. Fresh Init (No Restore, with Backup)
 echo "▶️ Testing Fresh Init..."
 # Responses: Restore? No (n), Default Provider? ENTER, 3 config fields? ENTER, Backup? ENTER
-printf "n\n\n\n\n\n" | ./gistsync init
+printf "n\n\n\n\n\n" | $GISTSYNC_BIN init
 
 if [ -f "$CONFIG_DIR/config.json" ] && [ -f "$CONFIG_DIR/state.json" ]; then
     echo "✅ Local config and state created."
@@ -33,7 +33,7 @@ fi
 echo "▶️ Testing Restore Flow..."
 setup_test_env
 # Restore with piped input (Restore? y, Provider? ENTER, Backup? ENTER, Sync? ENTER)
-printf "y\n\n\n\n" | ./gistsync init
+printf "y\n\n\n\n" | $GISTSYNC_BIN init
 
 if [ -f "$CONFIG_DIR/config.json" ] && [ -f "$CONFIG_DIR/state.json" ]; then
     echo "✅ Local config and state restored."
@@ -51,5 +51,5 @@ else
 fi
 
 # Cleanup
-gh gist delete "$GIST_ID" --yes || true
+XDG_CONFIG_HOME="$TEST_ROOT" XDG_CONFIG_HOME="$TEST_ROOT" gh gist delete "$GIST_ID" --yes || true
 echo "✅ Test Init Successful!"

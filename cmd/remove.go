@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -33,15 +34,15 @@ var removeCmd = &cobra.Command{
 			}
 
 			state.Mappings = newMappings
-			return nil // WithLock will call Save()
+			return nil
 		})
 
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			ui.Error("RemovalError", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 
-		fmt.Printf("Stopped tracking %s\n", path)
+		ui.Success("RemovalSuccess", map[string]interface{}{"Path": path})
 	},
 }
 

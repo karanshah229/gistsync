@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/karanshah229/gistsync/internal/storage"
+	"github.com/karanshah229/gistsync/pkg/ui"
 )
 
 type Engine struct {
@@ -460,7 +461,7 @@ func (e *Engine) SetVisibility(path string, public bool) error {
 	// 7. Clean up
 	if oldRemoteID != "" {
 		if err := e.Provider.Delete(oldRemoteID); err != nil {
-			fmt.Printf("Warning: failed to delete old gist %s: %v\n", oldRemoteID, err)
+			ui.Warning("GistDeleteWarning", map[string]interface{}{"ID": oldRemoteID, "Err": err})
 		}
 	}
 

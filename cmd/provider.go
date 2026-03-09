@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/karanshah229/gistsync/providers"
 	"github.com/spf13/cobra"
 )
@@ -24,7 +24,7 @@ var githubTestCmd = &cobra.Command{
 	Short: "Test GitHub connection and authentication",
 	Run: func(cmd *cobra.Command, args []string) {
 		p := providers.NewGitHubProvider()
-		fmt.Println("🔍 Testing Provider: GitHub")
+		ui.Print("TestingProvider", map[string]interface{}{"Name": "GitHub"})
 		testProvider(p)
 	},
 }
@@ -39,7 +39,7 @@ var gitlabTestCmd = &cobra.Command{
 	Short: "Test GitLab connection and authentication",
 	Run: func(cmd *cobra.Command, args []string) {
 		p := providers.NewGitLabProvider()
-		fmt.Println("🔍 Testing Provider: GitLab")
+		ui.Print("TestingProvider", map[string]interface{}{"Name": "GitLab"})
 		testProvider(p)
 	},
 }
@@ -47,21 +47,24 @@ var gitlabTestCmd = &cobra.Command{
 func testProvider(p core.Provider) {
 	ok, msg, err := p.Verify()
 	if err != nil {
-		fmt.Printf("❌ Error during verification: %v\n", err)
+		ui.Error("VerificationError", map[string]interface{}{"Err": err})
 		os.Exit(1)
 	}
 
 	if ok {
-		fmt.Printf("✅ Success: %s\n", msg)
+		ui.Success("VerificationSuccess", map[string]interface{}{"Msg": msg})
 	} else {
-		fmt.Printf("❌ Failure: %s\n", msg)
+		ui.Error("VerificationFailure", map[string]interface{}{"Msg": msg})
 		os.Exit(1)
 	}
 
 	// Also check rate limit
 	remaining, reset, err := p.CheckRateLimit()
 	if err == nil {
-		fmt.Printf("📊 Rate Limit: %d remaining (resets at %v)\n", remaining, reset.Format("15:04:05"))
+		ui.Print("RateLimitInfo", map[string]interface{}{
+			"Remaining": remaining,
+			"Reset":     reset.Format("15:04:05"),
+		})
 	}
 }
 
@@ -74,15 +77,9 @@ var providerInfoCmd = &cobra.Command{
 }
 
 func showProviderInfo() {
-	fmt.Println("ℹ️  Provider Setup Information")
-	fmt.Println("\n🔹 GitHub")
-	fmt.Println("   1. Install GitHub CLI: https://cli.github.com/")
-	fmt.Println("   2. Authenticate: run 'gh auth login'")
-	fmt.Println("   3. Verify: run 'gistsync provider github test'")
-
-	fmt.Println("\n🔹 GitLab")
-	fmt.Println("   (Implementation pending. Support for GitLab personal access tokens coming soon.)")
-	fmt.Println("   3. Verify: run 'gistsync provider gitlab test'")
+	ui.Header("ProviderInfoTitle", nil)
+	ui.Print("GitHubInfo", nil)
+	ui.Print("GitLabInfo", nil)
 }
 
 func init() {

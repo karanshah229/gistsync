@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # Common utilities for gistsync tests
-GISTSYNC_BIN="./gistsync"
-TEST_DIR="tests/tmp_files"
-CONFIG_DIR="$HOME/.config/gistsync"
+TEST_ROOT="$(pwd)/tests/tmp_files"
+GISTSYNC_BIN="env XDG_CONFIG_HOME=$TEST_ROOT ./gistsync"
+TEST_DIR="$TEST_ROOT/test_data"
+CONFIG_DIR="$TEST_ROOT/gistsync"
 
 # Helper for standard yes/no confirmation (ENTER = yes)
 function confirm_yes {
@@ -25,6 +26,13 @@ function setup_test_env {
     rm -rf "$CONFIG_DIR"
     rm -rf "$TEST_DIR"
     mkdir -p "$TEST_DIR"
+    mkdir -p "$CONFIG_DIR"
+
+    # Link gh config so provider tests work (gh inherits XDG_CONFIG_HOME)
+    if [ -d "$HOME/.config/gh" ] && [ ! -d "$TEST_ROOT/gh" ]; then
+        mkdir -p "$TEST_ROOT"
+        ln -s "$HOME/.config/gh" "$TEST_ROOT/gh"
+    fi
 }
 
 function cleanup_test_gists {
@@ -44,12 +52,12 @@ function gh_set_file_in_gist {
     # {"files": {"filename": {"content": "content"}}}
     local payload=$(printf '{"files": {"%s": {"content": "%s"}}}' "$filename" "$content")
     
-    gh api -X PATCH "gists/$gid" --input - <<< "$payload" > /dev/null
+    XDG_CONFIG_HOME="$TEST_ROOT" gh api -X PATCH "gists/$gid" --input - <<< "$payload" > /dev/null
 }
 
 function assert_gist_exists {
     local gid=$1
-    if gh gist view "$gid" > /dev/null 2>&1; then
+    if XDG_CONFIG_HOME="$TEST_ROOT" gh gist view "$gid" > /dev/null 2>&1; then
         echo "✅ Gist $gid exists."
     else
         echo "❌ Gist $gid NOT found."

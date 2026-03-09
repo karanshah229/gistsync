@@ -26,28 +26,48 @@ func ListProcesses() ([]GistSyncProcess, error) {
 		return nil, fmt.Errorf("failed to list processes: %v", err)
 	}
 
+	selfExe, err := os.Executable()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get self executable path: %v", err)
+	}
+
 	results := []GistSyncProcess{}
 	for _, p := range procs {
-		name, err := p.Name()
+		exe, err := p.Exe()
 		if err != nil {
-			continue
-		}
-
-		// Check if it's a gistsync process
-		// We check for both "gistsync" and the full path to the executable if it matches
-		if !strings.Contains(strings.ToLower(name), "gistsync") {
+			// Fallback to cmdline/name check if Exe() fails
+			name, _ := p.Name()
 			cmdline, _ := p.Cmdline()
-			if !strings.Contains(strings.ToLower(cmdline), "gistsync") {
+			isGistSync := strings.Contains(strings.ToLower(name), "gistsync") || 
+			              strings.Contains(strings.ToLower(cmdline), "gistsync")
+			if !isGistSync {
 				continue
+			}
+		} else {
+			if exe != selfExe {
+				// Also check if the base name matches in case it's a renamed binary
+				name, _ := p.Name()
+				if !strings.Contains(strings.ToLower(name), "gistsync") {
+					continue
+				}
 			}
 		}
 
+		// Check for zombie or child of this process (to avoid self-kill or stale info)
+		if isZombie(p) || isChildOfCurrent(p) {
+			continue
+		}
+
 		// Get details
-		ppid, _ := p.Ppid()
 		cmdline, _ := p.Cmdline()
+		ppid, _ := p.Ppid()
 		createTime, _ := p.CreateTime()
 		cpu, _ := p.CPUPercent()
-		memInfo, _ := p.MemoryInfo()
+		
+		var rss uint64
+		if memInfo, err := p.MemoryInfo(); err == nil && memInfo != nil {
+			rss = memInfo.RSS
+		}
 
 		results = append(results, GistSyncProcess{
 			PID:       p.Pid,
@@ -55,7 +75,7 @@ func ListProcesses() ([]GistSyncProcess, error) {
 			Cmdline:   cmdline,
 			StartTime: time.Unix(createTime/1000, 0),
 			CPU:       cpu,
-			Memory:    memInfo.RSS,
+			Memory:    rss,
 		})
 	}
 
@@ -76,16 +96,9 @@ func KillOtherProcesses() (int, error) {
 			continue
 		}
 
-		p, err := process.NewProcess(pInfo.PID)
-		if err != nil {
-			continue
+		if err := killProcessEscalating(pInfo.PID); err == nil {
+			killedCount++
 		}
-
-		if err := p.Terminate(); err != nil {
-			// Try killing if termination fails
-			p.Kill()
-		}
-		killedCount++
 	}
 
 	return killedCount, nil

@@ -5,6 +5,8 @@ import (
 	"strconv"
 
 	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/pkg/i18n"
+	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -22,9 +24,11 @@ var configListCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Printf("watch_interval_seconds: %d\n", config.WatchInterval)
-		fmt.Printf("watch_debounce_ms:      %d\n", config.WatchDebounce)
-		fmt.Printf("log_level:              %s\n", config.LogLevel)
+		ui.Print("ConfigList", map[string]interface{}{
+			"Interval": config.WatchInterval,
+			"Debounce": config.WatchDebounce,
+			"Level":    config.LogLevel,
+		})
 		return nil
 	},
 }
@@ -42,13 +46,13 @@ var configGetCmd = &cobra.Command{
 		key := args[0]
 		switch key {
 		case "watch_interval_seconds":
-			fmt.Println(config.WatchInterval)
+			ui.Print("ConfigVal", map[string]interface{}{"Val": config.WatchInterval})
 		case "watch_debounce_ms":
-			fmt.Println(config.WatchDebounce)
+			ui.Print("ConfigVal", map[string]interface{}{"Val": config.WatchDebounce})
 		case "log_level":
-			fmt.Println(config.LogLevel)
+			ui.Print("ConfigVal", map[string]interface{}{"Val": config.LogLevel})
 		default:
-			return fmt.Errorf("unknown config key: %s", key)
+			return fmt.Errorf("%s", i18n.T("UnknownConfigKey", map[string]interface{}{"Key": key}))
 		}
 		return nil
 	},
@@ -93,7 +97,7 @@ var configSetCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Printf("Successfully set %s to %s\n", key, val)
+		ui.Success("ConfigSetSuccess", map[string]interface{}{"Key": key, "Val": val})
 		return nil
 	},
 }

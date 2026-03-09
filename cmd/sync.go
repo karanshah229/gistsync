@@ -1,12 +1,12 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/karanshah229/gistsync/providers"
 	"github.com/spf13/cobra"
 )
@@ -18,7 +18,7 @@ var syncCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		state, err := core.LoadState()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading state: %v\n", err)
+			ui.Error("LoadStateFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 
@@ -41,17 +41,17 @@ var syncCmd = &cobra.Command{
 			private, _ := cmd.Flags().GetBool("private")
 
 			if public && private {
-				fmt.Fprintf(os.Stderr, "Error: cannot specify both --public and --private\n")
+				ui.Error("PublicPrivateConflict", nil)
 				os.Exit(1)
 			}
 
 			// Default to private if no flags are specified
 			isPublic := public
 			
-			fmt.Printf("📦 Path %s is not tracked. Performing initial sync...\n", absPath)
+			ui.Print("InitialSyncStart", map[string]interface{}{"Path": absPath})
 			err = engine.InitialSyncWithVisibility(absPath, isPublic)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Initialization failed: %v\n", err)
+				ui.Error("InitializationFailed", map[string]interface{}{"Err": err})
 				os.Exit(1)
 			}
 
@@ -63,7 +63,11 @@ var syncCmd = &cobra.Command{
 				if mapping.Public {
 					visibility = "public"
 				}
-				fmt.Printf("✅ Initialized %s sync for %s (Gist ID: %s)\n", visibility, absPath, mapping.RemoteID)
+				ui.Success("InitialSyncSuccess", map[string]interface{}{
+					"Visibility": visibility,
+					"Path":       absPath,
+					"ID":         mapping.RemoteID,
+				})
 			}
 			return
 		}
@@ -71,7 +75,7 @@ var syncCmd = &cobra.Command{
 		// Regular sync for existing mapping
 		info, err := os.Stat(path)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error stating path: %v\n", err)
+			ui.Error("StatPathFailed", map[string]interface{}{"Path": path, "Err": err})
 			os.Exit(1)
 		}
 
@@ -83,14 +87,14 @@ var syncCmd = &cobra.Command{
 
 		if err != nil {
 			if _, ok := err.(*core.ConflictError); ok {
-				fmt.Println(err)
+				ui.Error("ConflictDetected", map[string]interface{}{"Err": err})
 				os.Exit(1)
 			}
-			fmt.Fprintf(os.Stderr, "Sync failed: %v\n", err)
+			ui.Error("SyncFailedWithErr", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 
-		fmt.Println("Sync successful!")
+		ui.Success("SyncComplete", nil)
 	},
 }
 

@@ -1,7 +1,6 @@
 package watcher
 
 import (
-	"fmt"
 	"log"
 	"path/filepath"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal"
 	"github.com/karanshah229/gistsync/internal/storage"
+	"github.com/karanshah229/gistsync/pkg/ui"
 )
 
 type Watcher struct {
@@ -36,7 +36,7 @@ func (w *Watcher) Start() error {
 		}
 	}
 
-	fmt.Println("GistSync Watcher started. Watching for changes... (Polling remote every 60s)")
+	ui.Print("WatcherStarted", nil)
 
 	// Polling ticker from config
 	pollTicker := time.NewTicker(time.Duration(w.Config.WatchInterval) * time.Second)
@@ -64,7 +64,7 @@ func (w *Watcher) Start() error {
 				debounceTimer.Reset(time.Duration(w.Config.WatchDebounce) * time.Millisecond)
 			}
 		case <-debounceTimer.C:
-			fmt.Printf("Debounce triggered for %s\n", lastPath)
+			// ui.Print(DebounceTriggered", map[string]interface{}{"Path": lastPath}) // Silent for now?
 			// Differentiate between real local changes and remote poll updates via hash
 			mapping := w.Engine.State.GetMapping(lastPath)
 			if mapping == nil {
@@ -72,7 +72,7 @@ func (w *Watcher) Start() error {
 				for _, m := range w.Engine.State.Mappings {
 					if m.IsFolder && (lastPath == m.LocalPath || filepath.Dir(lastPath) == m.LocalPath) {
 						mapping = &m
-						fmt.Printf("Found parent mapping %s for %s\n", m.LocalPath, lastPath)
+						// ui.Print(FoundParentMapping", map[string]interface{}{"Parent": m.LocalPath, "Path": lastPath}) // Silent
 						break
 					}
 				}
@@ -98,7 +98,7 @@ func (w *Watcher) Start() error {
 				}
 			}
 
-			fmt.Printf("Local change detected in %s, syncing...\n", lastPath)
+			ui.Print("LocalChangeDetected", map[string]interface{}{"Path": lastPath})
 			w.syncPath(lastPath)
 
 		case <-pollTicker.C:
@@ -111,7 +111,7 @@ func (w *Watcher) Start() error {
 				continue
 			}
 
-			fmt.Println("Checking for remote changes...")
+			ui.Print("CheckingRemoteChanges", nil)
 			for _, m := range w.Engine.State.Mappings {
 				var err error
 				if m.IsFolder {
@@ -160,7 +160,7 @@ func (w *Watcher) syncPath(path string) {
 		if err != nil {
 			log.Printf("Auto-sync error: %v", err)
 		} else {
-			fmt.Printf("Auto-sync successful for %s\n", mapping.LocalPath)
+			ui.Success("AutoSyncSuccess", map[string]interface{}{"Path": mapping.LocalPath})
 		}
 	}
 }

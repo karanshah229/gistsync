@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.5.0] - 2026-03-10
+- chore: UI Layer + i18n
+
 ## [0.4.0] - 2026-03-10
 - feat: Autostart gistsync and process management
 

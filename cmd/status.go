@@ -1,11 +1,11 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/karanshah229/gistsync/providers"
 	"github.com/spf13/cobra"
 )
@@ -17,7 +17,7 @@ var statusCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		state, err := core.LoadState()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading state: %v\n", err)
+			ui.Error("LoadStateFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 
@@ -35,19 +35,19 @@ var statusCmd = &cobra.Command{
 		}
 
 		if len(paths) == 0 {
-			fmt.Println("No files are being tracked.")
+			ui.Print("NoFilesTracked", nil)
 			return
 		}
 
 		for _, p := range paths {
 			status, err := engine.Status(p)
 			if err != nil {
-				fmt.Printf("%s: ERROR (%v)\n", p, err)
+				ui.Printf("StatusError", map[string]interface{}{"Path": p, "Err": err})
 				continue
 			}
 			
 			abs, _ := filepath.Abs(p)
-			fmt.Printf("%s: %s\n", abs, status)
+			ui.Printf("StatusLine", map[string]interface{}{"Path": abs, "Status": status})
 		}
 	},
 }

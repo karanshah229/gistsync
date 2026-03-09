@@ -10,11 +10,12 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal/storage"
+	"github.com/karanshah229/gistsync/pkg/ui"
 )
 
 // RestoreConfig searches for and restores gistsync configuration from a provider
 func RestoreConfig(p core.Provider) (bool, error) {
-	fmt.Println("🔍 Searching for backups...")
+	ui.Print("SearchingBackups", nil)
 	gists, err := p.List()
 	if err != nil {
 		return false, fmt.Errorf("failed to list gists: %w", err)
@@ -50,7 +51,7 @@ func RestoreConfig(p core.Provider) (bool, error) {
 	if len(candidates) == 1 {
 		message := fmt.Sprintf("Found backup: %s (Updated: %v). Restore this one?", 
 			candidates[0].ID, candidates[0].UpdatedAt.Format("2006-01-02 15:04:05"))
-		if !Confirm(message) {
+		if !ui.Confirm("ConfirmQuestion", map[string]interface{}{"Message": message}) {
 			return false, nil
 		}
 		selectedID = candidates[0].ID
@@ -74,7 +75,7 @@ func RestoreConfig(p core.Provider) (bool, error) {
 		selectedID = idMap[selection]
 	}
 
-	fmt.Printf("📥 Downloading backup %s...\n", selectedID)
+	ui.Print("DownloadingBackup", map[string]interface{}{"ID": selectedID})
 	files, err := p.Fetch(selectedID)
 	if err != nil {
 		return false, fmt.Errorf("failed to fetch backup files: %w", err)
@@ -117,7 +118,7 @@ func RestoreConfig(p core.Provider) (bool, error) {
 			if err := storage.WriteAtomic(target, content); err != nil {
 				return false, fmt.Errorf("failed to write %s: %w", f.Path, err)
 			}
-			fmt.Printf("✅ Restored %s\n", f.Path)
+			ui.Success("RestoredFile", map[string]interface{}{"Path": f.Path})
 		}
 	}
 
@@ -167,7 +168,7 @@ func ValidateAndCleanConfig(data []byte) []byte {
 	}
 
 	if cleaned {
-		fmt.Println("⚠️  Some invalid configuration values were reset to defaults.")
+		ui.Warning("InvalidConfigReset", nil)
 		newData, err := json.MarshalIndent(cfg, "", "  ")
 		if err == nil {
 			return newData

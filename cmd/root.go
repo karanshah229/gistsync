@@ -7,6 +7,7 @@ import (
 
 	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/pkg/i18n"
 	"github.com/spf13/cobra"
 )
 
@@ -14,14 +15,16 @@ import (
 var Version string
 
 var rootCmd = &cobra.Command{
-	Use:     "gistsync",
-	Short:   "gistsync is a provider-agnostic file sync engine using GitHub Gists",
-	Long:    `A fast and efficient CLI tool to sync local files and folders to GitHub Gists with 2-way hash-based change detection.`,
-	Version: Version,
+	Use:           "gistsync",
+	Short:         "gistsync is a provider-agnostic file sync engine using GitHub Gists",
+	Long:          `A fast and efficient CLI tool to sync local files and folders to GitHub Gists with 2-way hash-based change detection.`,
+	Version:       Version,
+	SilenceErrors: true,
 }
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "❌ %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -44,12 +47,17 @@ func init() {
 			}
 		}
 
+		// Also skip if no subcommand was provided (cmd is rootCmd)
+		if cmd == rootCmd {
+			return nil
+		}
+
 		// Strictly check if config and state are present and valid
 		_, configErr := internal.LoadConfig()
 		_, stateErr := core.LoadState()
 
 		if configErr != nil || stateErr != nil {
-			return fmt.Errorf("configuration or state is missing or malformed. Please run 'gistsync init' to set up the tool")
+			return fmt.Errorf("%s", i18n.T("ConfigMissingError", nil))
 		}
 		return nil
 	}

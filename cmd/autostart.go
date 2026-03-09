@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -18,7 +18,7 @@ var autostartEnableCmd = &cobra.Command{
 	Short: "Enable gistsync autostart at login",
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := internal.InstallAutostart(); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Failed to enable autostart: %v\n", err)
+			ui.Error("AutostartFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 		
@@ -29,7 +29,7 @@ var autostartEnableCmd = &cobra.Command{
 			internal.SaveConfig(config)
 		}
 		
-		fmt.Println("✅ Autostart enabled successfully!")
+		ui.Success("AutostartEnabled", nil)
 	},
 }
 
@@ -38,7 +38,7 @@ var autostartDisableCmd = &cobra.Command{
 	Short: "Disable gistsync autostart at login",
 	Run: func(cmd *cobra.Command, args []string) {
 		if err := internal.UninstallAutostart(); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Failed to disable autostart: %v\n", err)
+			ui.Error("AutostartDisableFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 		
@@ -49,7 +49,7 @@ var autostartDisableCmd = &cobra.Command{
 			internal.SaveConfig(config)
 		}
 		
-		fmt.Println("✅ Autostart disabled successfully!")
+		ui.Success("AutostartDisabled", nil)
 	},
 }
 
@@ -59,14 +59,14 @@ var autostartStatusCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		enabled, err := internal.IsAutostartEnabled()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Failed to check autostart status: %v\n", err)
+			ui.Error("AutostartStatusCheckFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 		
 		if enabled {
-			fmt.Println("✅ Autostart is currently ENABLED")
+			ui.Success("AutostartStatusEnabled", nil)
 		} else {
-			fmt.Println("❌ Autostart is currently DISABLED")
+			ui.Error("AutostartStatusDisabled", nil)
 		}
 	},
 }

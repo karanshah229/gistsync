@@ -7,13 +7,26 @@ echo "🚀 Starting gistsync Test Suite..."
 # Ensure we have the binary
 go build -o gistsync .
 
-# 1. Run Init Tests
+# 1. Run Unit Tests
+echo "🧪 Running Go Unit Tests..."
+go test ./pkg/i18n ./pkg/ui
+
+# 2. Run UI Integration Tests
+bash tests/test_ui.sh
+
+# 3. Run Autostart Tests
+bash tests/test_autostart.sh
+
+# 4. Run Config Tests
+bash tests/test_config.sh
+
+# 5. Run Init Tests
 bash tests/test_init.sh
 
-# 2. Run Command Tests
+# 6. Run Command Tests (status, remove, provider)
 bash tests/test_commands.sh
 
-# 3. Run Sync Tests
+# 7. Run Sync Tests
 bash tests/test_sync.sh
 
 echo "------------------------------------------------"
