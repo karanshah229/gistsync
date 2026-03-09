@@ -5,7 +5,7 @@ VERSION=$(shell cat VERSION 2>/dev/null || echo "dev")
 GIT_HASH=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 INSTALL_DIR=/usr/local/bin
 
-.PHONY: build install clean local-install help dev install-tools install-hooks
+.PHONY: build install clean local-install help dev install-tools install-hooks test
 
 help:
 	@echo "Gistsync Build & Install Commands"
@@ -17,6 +17,11 @@ help:
 	@echo "make install-tools - Install development tools (e.g., air)"
 	@echo "make install-hooks - Install Git hooks for versioning and changelog"
 	@echo "make clean         - Remove binaries and dist/ directory"
+	@echo "make test          - Run the automated bash test suite"
+
+test:
+	@chmod +x tests/*.sh
+	./tests/run_tests.sh
 
 build:
 	go build -ldflags="-X 'github.com/karanshah229/gistsync/cmd.version=$(VERSION)-$(GIT_HASH)'" -o $(BINARY_NAME) main.go

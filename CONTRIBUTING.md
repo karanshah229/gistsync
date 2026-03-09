@@ -38,8 +38,21 @@ The project includes a Git pre-commit hook that will prompt you to bump the vers
 
 The hook automatically updates `VERSION` and `CHANGELOG.md` and stages them for your commit.
 
+### Automated Testing
+We maintain a robust bash-based testing suite to verify CLI behavior and sync logic.
+```bash
+make test
+# OR
+chmod +x tests/*.sh && ./tests/run_tests.sh
+```
+This suite covers:
+- `init` flows (fresh setup & restoration)
+- Subcommand logic (`config`, `provider`, `status`)
+- Core syncing (path flattening & 2-way sync)
+
 ## 📖 Technical Documentation
 For deep-dives into the architecture:
+- [Init, Standardization & Testing Guide](agy/init_standardization_guide.md)
 - [Version Management Guide](agy/version_management.md)
 - [Visibility & Transactional Safety Guide](agy/visibility_guide.md)
 - [Build & Distribution System](agy/build_system.md)

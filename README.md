@@ -36,7 +36,8 @@ Before using `gistsync`, you must initialize the configuration and state:
 ```bash
 gistsync init
 ```
-This will check for provider connectivity and interactively prompt for settings.
+
+- **Backup & Restore**: `init` can automatically search for and restore your configurations from GitHub Gists.
 
 ### 2. Sync File or Folder
 To start tracking and syncing a path:

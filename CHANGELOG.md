@@ -1,7 +1,14 @@
 # Changelog
 
+## [0.3.1] - 2026-03-10
+- chore: Update README, makefile, CONTIRBUTING, CHANGELOG
+
 ## [0.3.0] - 2026-03-10
-- feat: Backup and restore
+- feat: Config backup and restore during `init`
+- feat: Automated home-relative path repair for restored configurations
+- feat: Standardized `(yes / no)` prompts with ENTER-to-yes behavior
+- feat: Comprehensive bash-based automated test suite
+- docs: Added detailed centralization and initialization guides
 
 ## [0.2.0] - 2026-03-08
 - feat: Atomic virutal projection, sync and watch config dir, fix dir sync
