@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.4.0] - 2026-03-10
+- feat: Autostart gistsync and process management
+
 ## [0.3.1] - 2026-03-10
 - chore: Update README, makefile, CONTIRBUTING, CHANGELOG
 

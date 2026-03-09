@@ -195,6 +195,14 @@ var initCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		fmt.Println("\n✅ Configuration saved to config.json")
+		if config.Autostart {
+			fmt.Println("🚀 Enabling autostart...")
+			if err := internal.InstallAutostart(); err != nil {
+				fmt.Printf("⚠️  Failed to enable autostart: %v\n", err)
+			} else {
+				fmt.Println("✅ Autostart enabled successfully!")
+			}
+		}
 
 		// 6. Initialize state.json
 		statePath, err := storage.GetStateFilePath()
@@ -262,6 +270,8 @@ func setField(config *internal.Config, key string, val interface{}) {
 		config.WatchDebounce = val.(int)
 	case "LogLevel":
 		config.LogLevel = val.(string)
+	case "Autostart":
+		config.Autostart = val.(bool)
 	}
 }
 
@@ -286,6 +296,12 @@ func updateField(config *internal.Config, key string, input string) error {
 			return fmt.Errorf("must be one of: %s", strings.Join(allowed, ", "))
 		}
 		config.LogLevel = strings.ToLower(input)
+	case "Autostart":
+		v, err := strconv.ParseBool(input)
+		if err != nil {
+			return err
+		}
+		config.Autostart = v
 	}
 	return nil
 }

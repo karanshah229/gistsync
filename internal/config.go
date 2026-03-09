@@ -14,6 +14,7 @@ type Config struct {
 	WatchDebounce   int               `json:"watch_debounce_ms"`
 	LogLevel        string            `json:"log_level"`
 	DefaultProvider string            `json:"default_provider"`
+	Autostart       bool              `json:"autostart"`
 	Providers       map[string]string `json:"providers"` // Store provider status
 }
 
@@ -46,6 +47,12 @@ func GetConfigOptions() []ConfigOption {
 			Description: "Logging verbosity (debug, info, warn, error)",
 			Prompt:      "Log Level",
 		},
+		{
+			Key:         "Autostart",
+			Default:     true,
+			Description: "Automatically start gistsync at login",
+			Prompt:      "Enable Autostart",
+		},
 	}
 }
 
@@ -56,6 +63,7 @@ func DefaultConfig() *Config {
 		WatchDebounce:   500,
 		LogLevel:        "info",
 		DefaultProvider: "github",
+		Autostart:       true,
 		Providers:       make(map[string]string),
 	}
 }

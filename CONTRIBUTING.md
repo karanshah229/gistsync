@@ -49,6 +49,13 @@ This suite covers:
 - `init` flows (fresh setup & restoration)
 - Subcommand logic (`config`, `provider`, `status`)
 - Core syncing (path flattening & 2-way sync)
+- Autostart & Process Management (internal unit tests)
+
+### Dependency Management
+We use the following libraries for specialized functionality:
+- `github.com/shirou/gopsutil/v3`: For cross-platform process management.
+- `github.com/fsnotify/fsnotify`: For file system events.
+- `github.com/AlecAivazis/survey/v2`: For interactive CLI prompts.
 
 ## 📖 Technical Documentation
 For deep-dives into the architecture:

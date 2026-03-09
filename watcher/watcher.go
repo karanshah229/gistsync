@@ -54,6 +54,12 @@ func (w *Watcher) Start() error {
 				return nil
 			}
 			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) || event.Has(fsnotify.Rename) {
+				// Ignore self-updating files in the config directory to prevent feedback loops
+				name := filepath.Base(event.Name)
+				if storage.IsIgnoredConfigFile(name) {
+					continue
+				}
+
 				lastPath = event.Name
 				debounceTimer.Reset(time.Duration(w.Config.WatchDebounce) * time.Millisecond)
 			}

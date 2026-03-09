@@ -74,6 +74,21 @@ gistsync provider github test
 gistsync provider info
 ```
 
+### 7. Autostart at Login
+Enable or disable automatic sync (via `gistsync watch`) when you log in to your computer. Supports macOS (LaunchAgents), Linux (systemd), and Windows (Startup shortcuts).
+```bash
+gistsync autostart status
+gistsync autostart enable
+gistsync autostart disable
+```
+
+### 8. Process Management
+Manage multiple running instances of `gistsync`.
+```bash
+gistsync process list          # Show all running gistsync processes
+gistsync process kill-others   # Terminate other instances except the current one
+```
+
 ## Uninstallation
 
 To completely remove `gistsync` from your system:

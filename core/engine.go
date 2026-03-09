@@ -137,7 +137,7 @@ func (e *Engine) SyncDir(localPath string) error {
 	var filteredRemote []File
 	configDir, _ := storage.GetConfigDir()
 	for _, f := range remoteFiles {
-		if absPath == configDir && (f.Path == "state.json" || f.Path == "state.json.lock") {
+		if absPath == configDir && storage.IsIgnoredConfigFile(f.Path) {
 			continue
 		}
 		filteredRemote = append(filteredRemote, f)
@@ -254,7 +254,7 @@ func (e *Engine) ReadLocalDir(absPath string) ([]File, error) {
 		}
 
 		// Exclude state files only if in config directory
-		if isConfigDir && (info.Name() == "state.json" || info.Name() == "state.json.lock") {
+		if isConfigDir && storage.IsIgnoredConfigFile(info.Name()) {
 			return nil
 		}
 
