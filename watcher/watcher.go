@@ -9,6 +9,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/internal/storage"
 )
 
 type Watcher struct {
@@ -82,7 +83,7 @@ func (w *Watcher) Start() error {
 					currentHash, err = core.ComputeFileHash(lastPath)
 				}
 
-				configDir, _ := internal.GetConfigDir()
+				configDir, _ := storage.GetConfigDir()
 				if err == nil && currentHash == mapping.LastSyncedHash && mapping.LocalPath != configDir {
 					// Hash matches LastSyncedHash -> this was likely a remote pull, skip message
 					// EXCEPT for the config directory, where we want to sync even if content hasn't changed

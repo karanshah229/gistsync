@@ -10,7 +10,9 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/internal/storage"
 	"github.com/karanshah229/gistsync/providers"
 	"github.com/spf13/cobra"
 )
@@ -21,19 +23,13 @@ var initCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		if internal.IsConfigPresent() {
-			fmt.Print("⚠️  Configuration already exists. Overwrite? (y/N): ")
-			var response string
-			fmt.Scanln(&response)
-			if strings.ToLower(response) != "y" {
+			if !internal.Confirm("⚠️  Configuration already exists. Overwrite?") {
 				fmt.Println("Aborted.")
 				return
 			}
 		}
 
 		fmt.Println("🚀 Initializing gistsync...")
-
-		config := internal.DefaultConfig()
-		reader := bufio.NewReader(os.Stdin)
 
 		// 1. Check Providers
 		fmt.Println("\n🔍 Checking Providers...")
@@ -43,45 +39,117 @@ var initCmd = &cobra.Command{
 		ghOk, ghMsg, _ := gh.Verify()
 		glOk, glMsg, _ := gl.Verify()
 
-		availableProviders := []string{}
-
+		connectedProviders := []string{}
 		if ghOk {
 			fmt.Printf("✅ GitHub: Connected (%s)\n", strings.TrimSpace(ghMsg))
-			config.Providers["github"] = "connected"
-			availableProviders = append(availableProviders, "github")
+			connectedProviders = append(connectedProviders, "github")
 		} else {
 			fmt.Printf("❌ GitHub: Not Connected (%s)\n", strings.TrimSpace(ghMsg))
-			config.Providers["github"] = "not connected"
 		}
 
 		if glOk {
 			fmt.Printf("✅ GitLab: Connected (%s)\n", strings.TrimSpace(glMsg))
-			config.Providers["gitlab"] = "connected"
-			availableProviders = append(availableProviders, "gitlab")
+			connectedProviders = append(connectedProviders, "gitlab")
 		} else {
 			fmt.Printf("❌ GitLab: Not Connected (%s)\n", strings.TrimSpace(glMsg))
+		}
+
+		if len(connectedProviders) == 0 {
+			fmt.Println("\n💡 No providers are connected. Please set up a provider first.")
+			showProviderInfo()
+			return
+		}
+
+		// 2. Optional Restore
+		restored := false
+		wantRestore := internal.Confirm("Would you like to restore configurations from a provider?")
+
+		if wantRestore {
+			var selectedRestoreProvider string
+			if len(connectedProviders) == 1 {
+				selectedRestoreProvider = connectedProviders[0]
+			} else {
+				pSelect := &survey.Select{
+					Message: "Select provider to restore from:",
+					Options: connectedProviders,
+				}
+				survey.AskOne(pSelect, &selectedRestoreProvider)
+			}
+
+			var p core.Provider
+			if selectedRestoreProvider == "github" {
+				p = gh
+			} else {
+				p = gl
+			}
+
+			ok, err := internal.RestoreConfig(p)
+			if err != nil {
+				fmt.Printf("❌ Restoration failed: %v\n", err)
+			} else if ok {
+				fmt.Println("\n✅ Configurations restored successfully!")
+				restored = true
+
+				// Post-restore actions: Auto-repair paths
+				state, _ := core.LoadState()
+				if state != nil {
+					results, err := internal.RepairConfig(state)
+					if err == nil && len(results) > 0 {
+						repairedCount := 0
+						missingCount := 0
+						for _, r := range results {
+							if r.Status == "REPAIRED" {
+								repairedCount++
+							} else if r.Status == "MISSING" {
+								missingCount++
+							}
+						}
+						if repairedCount > 0 || missingCount > 0 {
+							fmt.Printf("🔧 Auto-repaired paths: %d repaired, %d missing.\n", repairedCount, missingCount)
+							if repairedCount > 0 {
+								fmt.Println("   Use 'gistsync config repair' to see details.")
+							}
+						}
+					}
+				}
+
+				wantSync := internal.Confirm("Would you like to run sync now?")
+				if wantSync {
+					fmt.Println("🔄 Running sync...")
+					internal.SyncAll(core.NewEngine(state, p))
+				}
+				
+				fmt.Println("\n🎉 gistsync is ready!")
+				return
+			} else {
+				fmt.Println("⚠️  No backup found in the selected provider. Continuing with normal initialization.")
+			}
+		}
+
+		config := internal.DefaultConfig()
+		reader := bufio.NewReader(os.Stdin)
+
+		if ghOk {
+			config.Providers["github"] = "connected"
+		} else {
+			config.Providers["github"] = "not connected"
+		}
+		if glOk {
+			config.Providers["gitlab"] = "connected"
+		} else {
 			config.Providers["gitlab"] = "not connected"
 		}
 
-		if !ghOk && !glOk {
-			fmt.Println("\n💡 No providers are connected.")
-			showProviderInfo()
-		}
-
-		// 2. Select Default Provider
+		// 3. Select Default Provider
 		fmt.Println("\n🎯 Default Provider Selection")
 		fmt.Println("   The default provider is used for:")
 		fmt.Println("   - Fast sync: used when no provider is specified in commands.")
 		fmt.Println("   - Backup: your configuration and state will be backed up to this provider.")
 
-		providerOptions := []string{"github", "gitlab"}
-		// If we found connected ones, maybe we want to highlight them? 
-		// For now, allow both but user can pick.
-
 		var selectedProvider string
 		prompt := &survey.Select{
 			Message: "Select your default provider:",
-			Options: providerOptions,
+			Options: connectedProviders,
 			Default: "github",
 		}
 
@@ -92,7 +160,7 @@ var initCmd = &cobra.Command{
 		config.DefaultProvider = selectedProvider
 		fmt.Printf("✅ Selected: %s\n", selectedProvider)
 
-		// 3. Interactive Config
+		// 4. Interactive Config
 		fmt.Println("\n⚙️  Configuration Setup")
 		options := internal.GetConfigOptions()
 		for _, opt := range options {
@@ -121,15 +189,15 @@ var initCmd = &cobra.Command{
 			}
 		}
 
-		// 3. Save Config
+		// 5. Save Config
 		if err := internal.SaveConfig(config); err != nil {
 			fmt.Fprintf(os.Stderr, "❌ Failed to save config: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Println("\n✅ Configuration saved to config.json")
 
-		// 4. Initialize state.json
-		statePath, err := internal.GetStateFilePath()
+		// 6. Initialize state.json
+		statePath, err := storage.GetStateFilePath()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "❌ Failed to get state path: %v\n", err)
 			os.Exit(1)
@@ -141,20 +209,42 @@ var initCmd = &cobra.Command{
 			version = "unknown"
 		}
 
-		initialState := struct {
-			Version  string        `json:"version"`
-			Mappings []interface{} `json:"mappings"`
-		}{
+		initialState := core.State{
 			Version:  version,
-			Mappings: []interface{}{},
+			Mappings: []core.Mapping{},
 		}
 
 		data, _ := json.MarshalIndent(initialState, "", "  ")
-		if err := internal.WriteAtomic(statePath, data); err != nil {
+		if err := storage.WriteAtomic(statePath, data); err != nil {
 			fmt.Fprintf(os.Stderr, "❌ Failed to initialize state: %v\n", err)
 			os.Exit(1)
 		}
 		fmt.Println("✅ State initialized in state.json")
+
+		// 7. Optional Backup (only if not restored)
+		if !restored {
+			if internal.Confirm("Would you like to backup your configuration to the default provider?") {
+				fmt.Println("📤 Backing up configuration...")
+				configDir, _ := storage.GetConfigDir()
+				
+				// Re-load state to get any changes
+				state, _ := core.LoadState()
+				var p core.Provider
+				if config.DefaultProvider == "github" {
+					p = providers.NewGitHubProvider()
+				} else {
+					p = providers.NewGitLabProvider()
+				}
+				engine := core.NewEngine(state, p)
+				
+				if err := engine.SyncDir(configDir); err != nil {
+					fmt.Printf("❌ Backup failed: %v\n", err)
+				} else {
+					fmt.Println("✅ Backup successful!")
+				}
+			}
+		}
+
 		fmt.Println("\n🎉 gistsync is ready! Use 'gistsync sync <path>' to start syncing.")
 	},
 }

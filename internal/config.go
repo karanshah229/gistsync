@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"github.com/karanshah229/gistsync/internal/storage"
 )
 
 // Config represents user-level application settings
@@ -60,7 +62,7 @@ func DefaultConfig() *Config {
 
 // GetConfigFilePath returns the absolute path to the config.json file
 func GetConfigFilePath() (string, error) {
-	dir, err := GetConfigDir()
+	dir, err := storage.GetConfigDir()
 	if err != nil {
 		return "", err
 	}
@@ -113,5 +115,5 @@ func SaveConfig(config *Config) error {
 		return err
 	}
 
-	return WriteAtomic(path, data)
+	return storage.WriteAtomic(path, data)
 }

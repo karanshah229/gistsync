@@ -31,6 +31,10 @@ func (p *GitLabProvider) Delete(remoteID string) error {
 	return errors.New("GitLab provider not implemented yet")
 }
 
+func (p *GitLabProvider) List() ([]core.GistInfo, error) {
+	return nil, errors.New("GitLab provider not implemented yet")
+}
+
 func (p *GitLabProvider) CheckRateLimit() (int, time.Time, error) {
 	return 1000, time.Now().Add(time.Hour), nil // Placeholder
 }

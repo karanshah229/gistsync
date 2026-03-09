@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/internal"
 	"github.com/karanshah229/gistsync/providers"
 	"github.com/spf13/cobra"
 )
@@ -13,11 +14,8 @@ import (
 var syncCmd = &cobra.Command{
 	Use:   "sync [path]",
 	Short: "Sync a file or directory to a gist (creates a new gist if not already tracked)",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		path := args[0]
-		absPath, _ := filepath.Abs(path)
-		
 		state, err := core.LoadState()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error loading state: %v\n", err)
@@ -27,6 +25,14 @@ var syncCmd = &cobra.Command{
 		provider := providers.NewGitHubProvider()
 		engine := core.NewEngine(state, provider)
 
+		if len(args) == 0 {
+			internal.SyncAll(engine)
+			return
+		}
+
+		path := args[0]
+		absPath, _ := filepath.Abs(path)
+		
 		// Check if path is already tracked
 		mapping := state.GetMapping(absPath)
 		if mapping == nil {

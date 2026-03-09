@@ -10,6 +10,8 @@ import (
 	"github.com/karanshah229/gistsync/core"
 )
 
+const gistPathSeparator = "---"
+
 type GitHubProvider struct{}
 
 func NewGitHubProvider() *GitHubProvider {
@@ -90,7 +92,9 @@ func (p *GitHubProvider) filterEmptyFiles(files []core.File) []core.File {
 func (p *GitHubProvider) makeFilesMap(files []core.File) map[string]interface{} {
 	filesMap := make(map[string]interface{})
 	for _, f := range files {
-		filesMap[f.Path] = map[string]string{
+		// Flatten path for Gist API (no slashes allowed in creation)
+		flatPath := strings.ReplaceAll(f.Path, "/", gistPathSeparator)
+		filesMap[flatPath] = map[string]string{
 			"content": string(f.Content),
 		}
 	}
@@ -117,8 +121,10 @@ func (p *GitHubProvider) Fetch(remoteID string) ([]core.File, error) {
 
 	var files []core.File
 	for _, f := range res.Files {
+		// Unflatten path from Gist API
+		origPath := strings.ReplaceAll(f.Filename, gistPathSeparator, "/")
 		files = append(files, core.File{
-			Path:    f.Filename,
+			Path:    origPath,
 			Content: []byte(f.Content),
 			Hash:    core.ComputeHash([]byte(f.Content)),
 		})
@@ -158,6 +164,46 @@ func (p *GitHubProvider) CheckRateLimit() (int, time.Time, error) {
 	}
 
 	return res.Resources.Core.Remaining, time.Unix(res.Resources.Core.Reset, 0), nil
+}
+
+func (p *GitHubProvider) List() ([]core.GistInfo, error) {
+	cmd := exec.Command("gh", "api", "gists")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list gists using api: %w (output: %s)", err, string(out))
+	}
+
+	var res []struct {
+		ID          string `json:"id"`
+		Description string `json:"description"`
+		UpdatedAt   string `json:"updated_at"`
+		Files       map[string]interface{} `json:"files"`
+	}
+
+	if err := json.Unmarshal(out, &res); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal gists api response: %w", err)
+	}
+
+	var infos []core.GistInfo
+	for _, g := range res {
+		updatedAt, _ := time.Parse(time.RFC3339, g.UpdatedAt)
+		
+		var files []string
+		for filename := range g.Files {
+			// Unflatten path for display/logic
+			origPath := strings.ReplaceAll(filename, gistPathSeparator, "/")
+			files = append(files, origPath)
+		}
+
+		infos = append(infos, core.GistInfo{
+			ID:          g.ID,
+			Description: g.Description,
+			UpdatedAt:   updatedAt,
+			Files:       files,
+		})
+	}
+
+	return infos, nil
 }
 
 func (p *GitHubProvider) Verify() (bool, string, error) {

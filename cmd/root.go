@@ -30,8 +30,18 @@ func init() {
 	rootCmd.SetVersionTemplate("gistsync version {{.Version}}\n")
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		// Skip check for commands that don't need config
-		if cmd.Name() == "init" || cmd.Name() == "help" || cmd.Name() == "version" || cmd.Name() == "completion" {
-			return nil
+		skipCommands := map[string]struct{}{
+			"init":       {},
+			"help":       {},
+			"version":    {},
+			"completion": {},
+			"provider":   {},
+		}
+
+		for c := cmd; c != nil; c = c.Parent() {
+			if _, ok := skipCommands[c.Name()]; ok {
+				return nil
+			}
 		}
 
 		// Strictly check if config and state are present and valid

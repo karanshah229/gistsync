@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/internal/storage"
 )
 
 type Engine struct {
@@ -135,7 +135,7 @@ func (e *Engine) SyncDir(localPath string) error {
 	
 	// Filter remote files to exclude state.json for consistent hash comparison
 	var filteredRemote []File
-	configDir, _ := internal.GetConfigDir()
+	configDir, _ := storage.GetConfigDir()
 	for _, f := range remoteFiles {
 		if absPath == configDir && (f.Path == "state.json" || f.Path == "state.json.lock") {
 			continue
@@ -235,7 +235,7 @@ func (e *Engine) SyncDir(localPath string) error {
 
 
 func (e *Engine) ReadLocalDir(absPath string) ([]File, error) {
-	configDir, _ := internal.GetConfigDir()
+	configDir, _ := storage.GetConfigDir()
 	isConfigDir := absPath == configDir
 
 	var files []File
@@ -311,7 +311,7 @@ func (e *Engine) initialSync(absPath string, public bool) error {
 	}
 
 	uploadFiles := files
-	configDir, _ := internal.GetConfigDir()
+	configDir, _ := storage.GetConfigDir()
 	if absPath == configDir {
 		// Virtual State Projection for initial sync:
 		// We need to include the mapping we are ABOUT to create.

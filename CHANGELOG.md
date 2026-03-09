@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.3.0] - 2026-03-10
+- feat: Backup and restore
+
 ## [0.2.0] - 2026-03-08
 - feat: Atomic virutal projection, sync and watch config dir, fix dir sync
 

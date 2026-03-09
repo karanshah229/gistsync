@@ -5,12 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/internal/storage"
 )
 
 // LoadState loads the current state from the config directory
 func LoadState() (*State, error) {
-	path, err := internal.GetStateFilePath()
+	path, err := storage.GetStateFilePath()
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +30,7 @@ func LoadState() (*State, error) {
 
 // Save saves the current state to the config directory atomically
 func (s *State) Save() error {
-	path, err := internal.GetStateFilePath()
+	path, err := storage.GetStateFilePath()
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func (s *State) Save() error {
 		return err
 	}
 
-	return internal.WriteAtomic(path, data)
+	return storage.WriteAtomic(path, data)
 }
 // AddMapping adds a mapping and saves state safely
 func (s *State) AddMapping(m Mapping) error {
@@ -74,12 +74,12 @@ func (s *State) GetMapping(localPath string) *Mapping {
 
 // WithLock executes the given function with a file lock held
 func WithLock(fn func(s *State) error) error {
-	path, err := internal.GetStateFilePath()
+	path, err := storage.GetStateFilePath()
 	if err != nil {
 		return err
 	}
 
-	return internal.WithFileLock(path, func() error {
+	return storage.WithFileLock(path, func() error {
 		state, err := LoadState()
 		if err != nil {
 			return err
