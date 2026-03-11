@@ -10,6 +10,7 @@ import (
 	"github.com/karanshah229/gistsync/internal"
 	"github.com/karanshah229/gistsync/internal/logger"
 	"github.com/karanshah229/gistsync/pkg/i18n"
+	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +27,7 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "❌ %v\n", err)
+		ui.Error("GenericError", map[string]interface{}{"Err": err})
 		os.Exit(1)
 	}
 }
@@ -73,8 +74,14 @@ func init() {
 		_, configErr := internal.LoadConfig()
 		_, stateErr := core.LoadState()
 
-		if configErr != nil || stateErr != nil {
+		if configErr != nil && stateErr != nil {
 			return fmt.Errorf("%s", i18n.T("ConfigMissingError", nil))
+		}
+		if configErr != nil {
+			return fmt.Errorf("configuration is missing or malformed: %w. Please run 'gistsync init' to set up the tool", configErr)
+		}
+		if stateErr != nil {
+			return fmt.Errorf("state is missing or malformed: %w. Please run 'gistsync init' to set up the tool", stateErr)
 		}
 		return nil
 	}

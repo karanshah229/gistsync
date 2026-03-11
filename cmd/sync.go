@@ -31,7 +31,11 @@ var syncCmd = &cobra.Command{
 		}
 
 		path := args[0]
-		absPath, _ := filepath.Abs(path)
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			ui.Error("AbsPathFailed", map[string]interface{}{"Path": path, "Err": err})
+			os.Exit(1)
+		}
 		
 		// Check if path is already tracked
 		mapping := state.GetMapping(absPath)
@@ -56,18 +60,23 @@ var syncCmd = &cobra.Command{
 			}
 
 			// Reload state to get the fresh mapping
-			state, _ = core.LoadState()
-			mapping = state.GetMapping(absPath)
-			if mapping != nil {
-				visibility := "private"
-				if mapping.Public {
-					visibility = "public"
+			state, reloadErr := core.LoadState()
+			if reloadErr != nil {
+				ui.Warning("LoadStateFailed", map[string]interface{}{"Err": reloadErr})
+			}
+			if state != nil {
+				mapping = state.GetMapping(absPath)
+				if mapping != nil {
+					visibility := "private"
+					if mapping.Public {
+						visibility = "public"
+					}
+					ui.Success("InitialSyncSuccess", map[string]interface{}{
+						"Visibility": visibility,
+						"Path":       absPath,
+						"ID":         mapping.RemoteID,
+					})
 				}
-				ui.Success("InitialSyncSuccess", map[string]interface{}{
-					"Visibility": visibility,
-					"Path":       absPath,
-					"ID":         mapping.RemoteID,
-				})
 			}
 			return
 		}

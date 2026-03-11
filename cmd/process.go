@@ -21,7 +21,7 @@ var processListCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		procs, err := internal.ListProcesses()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Failed to list processes: %v\n", err)
+			ui.Error("ProcessListFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 
@@ -47,7 +47,7 @@ var processKillOthersCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		killed, err := internal.KillOtherProcesses()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Failed to kill other processes: %v\n", err)
+			ui.Error("ProcessKillFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 

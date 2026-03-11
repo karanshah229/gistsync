@@ -40,5 +40,13 @@ type ConflictError struct {
 
 func (e *ConflictError) Error() string {
 	return fmt.Sprintf("Conflict detected!\n  Local:      %s\n  Remote:     %s\n  LastSynced: %s\n(Both local and remote have changed from the last sync point)",
-		e.LocalHash, e.RemoteHash, e.LastSyncedHash)
+		truncHash(e.LocalHash), truncHash(e.RemoteHash), truncHash(e.LastSyncedHash))
+}
+
+// truncHash safely truncates a hash to 8 chars for display
+func truncHash(h string) string {
+	if len(h) > 8 {
+		return h[:8]
+	}
+	return h
 }

@@ -1,4 +1,5 @@
 {
+  "GenericError": "{{.Err}}",
   "AppDescription": "gistsync is a provider-agnostic file sync engine using GitHub Gists",
   "AppLongDescription": "A fast and efficient CLI tool to sync local files and folders to GitHub Gists with 2-way hash-based change detection.",
   "ConfigMissingError": "configuration or state is missing or malformed. Please run 'gistsync init' to set up the tool",
@@ -107,5 +108,32 @@
   "VisibilityChangeSuccess": "Successfully changed visibility to {{.Visibility}}",
   "LoadConfigFailed": "Error loading config: {{.Err}}",
   "WatcherFailedToStart": "Watcher failed: {{.Err}}",
-  "ConfirmQuestion": "{{.Message}} (yes / no) "
+  "ConfirmQuestion": "{{.Message}} (yes / no) ",
+
+  "RecoverScanning": "🔍 Scanning logs for recovery...",
+  "RecoverNoHistory": "No sync history found in logs.\nNote: Reconstruction is only possible for syncs performed after the logging system was implemented.",
+  "RecoverUpToDate": "State is already up to date (no new log entries since last checkpoint).",
+  "RecoverInterrupted": "Detected interrupted local commit for {{.Path}} (Remote succeeded, local state may have missed it)",
+  "RecoverAllExist": "All sync events since last checkpoint already exist in state.json.",
+  "RecoverNewMappings": "Successfully recovered {{.Count}} new mappings to state.json",
+  "RecoverUpdated": "Successfully updated existing mappings in state.json",
+  "RecoverScanFailed": "Failed to scan log directory: {{.Err}}",
+  "RecoverLogOpenFailed": "Failed to open log file {{.File}}: skipping",
+
+  "ProcessListFailed": "Failed to list processes: {{.Err}}",
+  "ProcessKillFailed": "Failed to kill other processes: {{.Err}}",
+
+  "UnknownConfigKeyHint": "Unknown config key '{{.Key}}'. Valid keys: watch_interval_seconds, watch_debounce_ms, log_level",
+  "InvalidPositiveInt": "'{{.Key}}' must be a positive integer, got '{{.Val}}'",
+  "InvalidLogLevel": "Invalid log level '{{.Val}}'. Choose from: info, debug, warn, error",
+  "RemoveNotTrackedHint": "Path '{{.Path}}' is not being tracked. Use 'gistsync status' to see tracked paths.",
+  "PathNotTrackedHint": "Path '{{.Path}}' is not tracked. Use 'gistsync sync {{.Path}}' to start tracking it.",
+  "RemoteGistEmpty": "Remote gist {{.ID}} is empty. It may have been deleted on the provider.",
+
+  "SyncAllSummary": "Sync complete: {{.Success}} succeeded, {{.Failed}} failed out of {{.Total}} mappings.",
+  "VerifyError": "Provider verification encountered an error: {{.Err}}",
+  "GetStatePathFailed": "Failed to get state path: {{.Err}}",
+  "AbsPathFailed": "Failed to resolve absolute path for '{{.Path}}': {{.Err}}",
+  "MarshalStateFailed": "Failed to serialize initial state: {{.Err}}",
+  "ConfigDirFailed": "Failed to get config directory: {{.Err}}"
 }

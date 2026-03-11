@@ -46,7 +46,11 @@ var statusCmd = &cobra.Command{
 				continue
 			}
 			
-			abs, _ := filepath.Abs(p)
+			abs, err := filepath.Abs(p)
+			if err != nil {
+				ui.Print("StatusError", map[string]interface{}{"Path": p, "Err": err})
+				continue
+			}
 			ui.Print("StatusLine", map[string]interface{}{"Path": abs, "Status": status})
 		}
 	},

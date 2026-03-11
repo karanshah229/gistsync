@@ -23,10 +23,14 @@ var autostartEnableCmd = &cobra.Command{
 		}
 		
 		// Also update config
-		config, _ := internal.LoadConfig()
-		if config != nil {
+		config, loadErr := internal.LoadConfig()
+		if loadErr != nil {
+			ui.Warning("LoadConfigFailed", map[string]interface{}{"Err": loadErr})
+		} else if config != nil {
 			config.Autostart = true
-			internal.SaveConfig(config)
+			if saveErr := internal.SaveConfig(config); saveErr != nil {
+				ui.Warning("SaveConfigFailed", map[string]interface{}{"Err": saveErr})
+			}
 		}
 		
 		ui.Success("AutostartEnabled", nil)
@@ -43,10 +47,14 @@ var autostartDisableCmd = &cobra.Command{
 		}
 		
 		// Also update config
-		config, _ := internal.LoadConfig()
-		if config != nil {
+		config, loadErr := internal.LoadConfig()
+		if loadErr != nil {
+			ui.Warning("LoadConfigFailed", map[string]interface{}{"Err": loadErr})
+		} else if config != nil {
 			config.Autostart = false
-			internal.SaveConfig(config)
+			if saveErr := internal.SaveConfig(config); saveErr != nil {
+				ui.Warning("SaveConfigFailed", map[string]interface{}{"Err": saveErr})
+			}
 		}
 		
 		ui.Success("AutostartDisabled", nil)

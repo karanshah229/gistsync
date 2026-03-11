@@ -17,7 +17,7 @@ func ComputeHash(data []byte) string {
 func ComputeFileHash(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to open file for hashing %s: %w", path, err)
 	}
 	defer f.Close()
 

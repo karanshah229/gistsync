@@ -37,8 +37,8 @@ var initCmd = &cobra.Command{
 		gh := providers.NewGitHubProvider()
 		gl := providers.NewGitLabProvider()
 
-		ghOk, ghMsg, _ := gh.Verify()
-		glOk, glMsg, _ := gl.Verify()
+		ghOk, ghMsg, ghErr := gh.Verify()
+		glOk, glMsg, glErr := gl.Verify()
 
 		connectedProviders := []string{}
 		if ghOk {
@@ -46,6 +46,9 @@ var initCmd = &cobra.Command{
 			connectedProviders = append(connectedProviders, "github")
 		} else {
 			ui.Error("GitHubNotConnected", map[string]interface{}{"Msg": strings.TrimSpace(ghMsg)})
+			if ghErr != nil {
+				ui.Warning("VerifyError", map[string]interface{}{"Err": ghErr})
+			}
 		}
 
 		if glOk {
@@ -53,6 +56,9 @@ var initCmd = &cobra.Command{
 			connectedProviders = append(connectedProviders, "gitlab")
 		} else {
 			ui.Error("GitLabNotConnected", map[string]interface{}{"Msg": strings.TrimSpace(glMsg)})
+			if glErr != nil {
+				ui.Warning("VerifyError", map[string]interface{}{"Err": glErr})
+			}
 		}
 
 		if len(connectedProviders) == 0 {
@@ -75,6 +81,10 @@ var initCmd = &cobra.Command{
 					Options: connectedProviders,
 				}
 				survey.AskOne(pSelect, &selectedRestoreProvider)
+				if selectedRestoreProvider == "" {
+					ui.Print("Aborted", nil)
+					return
+				}
 			}
 
 			var p core.Provider
@@ -92,7 +102,10 @@ var initCmd = &cobra.Command{
 				restored = true
 
 				// Post-restore actions: Auto-repair paths
-				state, _ := core.LoadState()
+				state, stateErr := core.LoadState()
+				if stateErr != nil {
+					ui.Warning("LoadStateFailed", map[string]interface{}{"Err": stateErr})
+				}
 				if state != nil {
 					results, err := internal.RepairConfig(state)
 					if err == nil && len(results) > 0 {
@@ -209,7 +222,7 @@ var initCmd = &cobra.Command{
 		// 6. Initialize state.json
 		statePath, err := storage.GetStateFilePath()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Failed to get state path: %v\n", err)
+			ui.Error("GetStatePathFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 
@@ -224,7 +237,11 @@ var initCmd = &cobra.Command{
 			Mappings: []core.Mapping{},
 		}
 
-		data, _ := json.MarshalIndent(initialState, "", "  ")
+		data, marshalErr := json.MarshalIndent(initialState, "", "  ")
+		if marshalErr != nil {
+			ui.Error("MarshalStateFailed", map[string]interface{}{"Err": marshalErr})
+			os.Exit(1)
+		}
 		if err := storage.WriteAtomic(statePath, data); err != nil {
 			ui.Error("StateInitFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
@@ -235,22 +252,29 @@ var initCmd = &cobra.Command{
 		if !restored {
 			if ui.Confirm("ConfirmQuestion", map[string]interface{}{"Message": "Would you like to backup your configuration to the default provider?"}) {
 				ui.Print("BackingUpConfig", nil)
-				configDir, _ := storage.GetConfigDir()
-				
-				// Re-load state to get any changes
-				state, _ := core.LoadState()
-				var p core.Provider
-				if config.DefaultProvider == "github" {
-					p = providers.NewGitHubProvider()
+				configDir, configDirErr := storage.GetConfigDir()
+				if configDirErr != nil {
+					ui.Error("ConfigDirFailed", map[string]interface{}{"Err": configDirErr})
 				} else {
-					p = providers.NewGitLabProvider()
-				}
-				engine := core.NewEngine(state, p)
-				
-				if _, err := engine.SyncDir(configDir); err != nil {
-					ui.Error("BackupFailed", map[string]interface{}{"Err": err})
-				} else {
-					ui.Success("BackupSuccess", nil)
+					// Re-load state to get any changes
+					state, stateErr := core.LoadState()
+					if stateErr != nil {
+						ui.Warning("LoadStateFailed", map[string]interface{}{"Err": stateErr})
+					} else {
+						var p core.Provider
+						if config.DefaultProvider == "github" {
+							p = providers.NewGitHubProvider()
+						} else {
+							p = providers.NewGitLabProvider()
+						}
+						engine := core.NewEngine(state, p)
+
+						if _, err := engine.SyncDir(configDir); err != nil {
+							ui.Error("BackupFailed", map[string]interface{}{"Err": err})
+						} else {
+							ui.Success("BackupSuccess", nil)
+						}
+					}
 				}
 			}
 		}

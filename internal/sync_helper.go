@@ -5,11 +5,12 @@ import (
 	"github.com/karanshah229/gistsync/pkg/ui"
 )
 
-// SyncAll iterates through all mappings in the state and performs a sync for each
-func SyncAll(engine *core.Engine) {
+// SyncAll iterates through all mappings in the state and performs a sync for each.
+// It returns the number of successful and failed syncs.
+func SyncAll(engine *core.Engine) (successCount, failCount int) {
 	if len(engine.State.Mappings) == 0 {
 		ui.Print("NoMappingsFound", nil)
-		return
+		return 0, 0
 	}
 
 	ui.Print("SyncingAllMappings", map[string]interface{}{"Count": len(engine.State.Mappings)})
@@ -24,7 +25,9 @@ func SyncAll(engine *core.Engine) {
 
 		if err != nil {
 			ui.Error("SyncFailed", map[string]interface{}{"Path": m.LocalPath, "Err": err})
+			failCount++
 		} else {
+			successCount++
 			switch action {
 			case core.ActionNoop:
 				ui.Print("SyncNoop", map[string]interface{}{"Path": m.LocalPath})
@@ -37,4 +40,11 @@ func SyncAll(engine *core.Engine) {
 			}
 		}
 	}
+
+	ui.Print("SyncAllSummary", map[string]interface{}{
+		"Success": successCount,
+		"Failed":  failCount,
+		"Total":   len(engine.State.Mappings),
+	})
+	return successCount, failCount
 }

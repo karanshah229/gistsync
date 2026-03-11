@@ -2,6 +2,7 @@ package internal
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -96,12 +97,12 @@ func LoadConfig() (*Config, error) {
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read config file %s: %w", path, err)
 	}
 
 	config := &Config{}
 	if err := json.Unmarshal(data, config); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
 	if config.Providers == nil {

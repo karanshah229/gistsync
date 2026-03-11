@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/pkg/i18n"
 	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/spf13/cobra"
 )
@@ -17,7 +18,11 @@ var removeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		path := args[0]
 		
-		absPath, _ := filepath.Abs(path)
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			ui.Error("AbsPathFailed", map[string]interface{}{"Path": path, "Err": err})
+			os.Exit(1)
+		}
 		
 		state, err := core.LoadState()
 		if err != nil {
@@ -37,7 +42,7 @@ var removeCmd = &cobra.Command{
 			}
 
 			if !found {
-				return fmt.Errorf("path %s is not being tracked", path)
+				return fmt.Errorf("%s", i18n.T("RemoveNotTrackedHint", map[string]interface{}{"Path": absPath}))
 			}
 
 			state.Mappings = newMappings

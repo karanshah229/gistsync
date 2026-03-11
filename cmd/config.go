@@ -52,7 +52,7 @@ var configGetCmd = &cobra.Command{
 		case "log_level":
 			ui.Print("ConfigVal", map[string]interface{}{"Val": config.LogLevel})
 		default:
-			return fmt.Errorf("%s", i18n.T("UnknownConfigKey", map[string]interface{}{"Key": key}))
+			return fmt.Errorf("%s", i18n.T("UnknownConfigKeyHint", map[string]interface{}{"Key": key}))
 		}
 		return nil
 	},
@@ -75,22 +75,22 @@ var configSetCmd = &cobra.Command{
 		case "watch_interval_seconds":
 			v, err := strconv.Atoi(val)
 			if err != nil || v <= 0 {
-				return fmt.Errorf("value must be a positive integer")
+				return fmt.Errorf("%s", i18n.T("InvalidPositiveInt", map[string]interface{}{"Key": key, "Val": val}))
 			}
 			config.WatchInterval = v
 		case "watch_debounce_ms":
 			v, err := strconv.Atoi(val)
 			if err != nil || v <= 0 {
-				return fmt.Errorf("value must be a positive integer")
+				return fmt.Errorf("%s", i18n.T("InvalidPositiveInt", map[string]interface{}{"Key": key, "Val": val}))
 			}
 			config.WatchDebounce = v
 		case "log_level":
-			if val != "info" && val != "debug" && val != "error" {
-				return fmt.Errorf("invalid log level: %s (choose info, debug, or error)", val)
+			if val != "info" && val != "debug" && val != "warn" && val != "error" {
+				return fmt.Errorf("%s", i18n.T("InvalidLogLevel", map[string]interface{}{"Val": val}))
 			}
 			config.LogLevel = val
 		default:
-			return fmt.Errorf("unknown config key: %s", key)
+			return fmt.Errorf("%s", i18n.T("UnknownConfigKeyHint", map[string]interface{}{"Key": key}))
 		}
 
 		if err := internal.SaveConfig(config); err != nil {

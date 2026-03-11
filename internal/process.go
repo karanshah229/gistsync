@@ -23,12 +23,12 @@ type GistSyncProcess struct {
 func ListProcesses() ([]GistSyncProcess, error) {
 	procs, err := process.Processes()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list processes: %v", err)
+		return nil, fmt.Errorf("failed to list processes: %w", err)
 	}
 
 	selfExe, err := os.Executable()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get self executable path: %v", err)
+		return nil, fmt.Errorf("failed to get self executable path: %w", err)
 	}
 
 	results := []GistSyncProcess{}

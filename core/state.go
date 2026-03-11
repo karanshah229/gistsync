@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -18,12 +19,12 @@ func LoadState() (*State, error) {
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read state file %s: %w", path, err)
 	}
 
 	state := &State{}
 	if err := json.Unmarshal(data, state); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse state file: %w", err)
 	}
 
 	return state, nil

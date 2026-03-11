@@ -1,13 +1,14 @@
 package watcher
 
 import (
-	"log"
+	"log/slog"
 	"path/filepath"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/internal/logger"
 	"github.com/karanshah229/gistsync/internal/storage"
 	"github.com/karanshah229/gistsync/pkg/ui"
 )
@@ -32,7 +33,7 @@ func (w *Watcher) Start() error {
 	for _, m := range w.Engine.State.Mappings {
 		err = watcher.Add(m.LocalPath)
 		if err != nil {
-			log.Printf("Error watching path %s: %v", m.LocalPath, err)
+			logger.Log.Warn("Failed to watch path", slog.String("path", m.LocalPath), slog.String("error", err.Error()))
 		}
 	}
 
@@ -114,9 +115,9 @@ func (w *Watcher) Start() error {
 			// Rate limit check
 			remaining, _, err := w.Engine.Provider.CheckRateLimit()
 			if err != nil {
-				log.Printf("Rate limit check failed: %v", err)
+				logger.Log.Warn("Rate limit check failed", slog.String("error", err.Error()))
 			} else if remaining < 10 {
-				log.Printf("Rate limit low (%d remaining), skipping poll cycle", remaining)
+				logger.Log.Warn("Rate limit low, skipping poll cycle", slog.Int("remaining", remaining))
 				continue
 			}
 
@@ -130,9 +131,9 @@ func (w *Watcher) Start() error {
 				}
 				if err != nil {
 					if _, ok := err.(*core.ConflictError); ok {
-						log.Printf("Remote change detected for %s: CONFLICT", m.LocalPath)
+						logger.Log.Warn("Remote change detected: CONFLICT", slog.String("path", m.LocalPath))
 					} else {
-						log.Printf("Remote poll sync error for %s: %v", m.LocalPath, err)
+						logger.Log.Error("Remote poll sync error", slog.String("path", m.LocalPath), slog.String("error", err.Error()))
 					}
 				}
 			}
@@ -141,7 +142,7 @@ func (w *Watcher) Start() error {
 			if !ok {
 				return nil
 			}
-			log.Println("Watcher error:", err)
+			logger.Log.Error("Watcher error", slog.String("error", err.Error()))
 		}
 	}
 }
@@ -167,7 +168,7 @@ func (w *Watcher) syncPath(path string) {
 			_, err = w.Engine.SyncFile(mapping.LocalPath)
 		}
 		if err != nil {
-			log.Printf("Auto-sync error: %v", err)
+			logger.Log.Error("Auto-sync error", slog.String("path", mapping.LocalPath), slog.String("error", err.Error()))
 		} else {
 			ui.Success("AutoSyncSuccess", map[string]interface{}{"Path": mapping.LocalPath})
 		}

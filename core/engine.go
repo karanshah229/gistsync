@@ -70,7 +70,7 @@ func (e *Engine) SyncFile(localPath string) (SyncAction, error) {
 	}
 
 	if remoteFile == nil {
-		return "", fmt.Errorf("remote gist %s is empty", mapping.RemoteID)
+		return "", fmt.Errorf("remote gist %s is empty — it may have been deleted on the provider", mapping.RemoteID)
 	}
 
 	action := DetermineAction(localHash, remoteFile.Hash, mapping.LastSyncedHash)
@@ -267,7 +267,9 @@ func (e *Engine) SyncDir(localPath string) (SyncAction, error) {
 		// For now, write/overwrite what we have.
 		for _, rf := range remoteFiles {
 			target := filepath.Join(absPath, rf.Path)
-			os.MkdirAll(filepath.Dir(target), 0755)
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				return "", fmt.Errorf("failed to create directory for %s: %w", target, err)
+			}
 			if err := os.WriteFile(target, rf.Content, 0644); err != nil {
 				return "", err
 			}
@@ -444,7 +446,7 @@ func (e *Engine) SetVisibility(path string, public bool) error {
 	err = e.State.WithLock(func(state *State) error {
 		mapping := state.GetMapping(absPath)
 		if mapping == nil {
-			return fmt.Errorf("path %s is not tracked", path)
+			return fmt.Errorf("path %s is not tracked — use 'gistsync sync %s' to start tracking it", path, path)
 		}
 
 		if mapping.Public == public {
@@ -622,7 +624,7 @@ func (e *Engine) Status(localPath string) (SyncAction, error) {
 
 	if action == ActionConflict {
 		return SyncAction(fmt.Sprintf("CONFLICT (Local: %s, Remote: %s, LastSynced: %s)", 
-			localHash[:8], remoteHash[:8], mapping.LastSyncedHash[:8])), nil
+			truncHash(localHash), truncHash(remoteHash), truncHash(mapping.LastSyncedHash))), nil
 	}
 	return action, nil
 }

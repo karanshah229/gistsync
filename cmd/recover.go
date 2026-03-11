@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal/logger"
 	"github.com/karanshah229/gistsync/internal/storage"
+	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -33,16 +33,16 @@ var recoverCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		logDir, err := storage.GetLogDir()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get log directory for recovery: %w", err)
 		}
 
 		files, err := os.ReadDir(logDir)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to scan log directory: %w", err)
 		}
 
 		var entries []walEntry
-		color.Cyan("🔍 Scanning logs for recovery...")
+		ui.Info("RecoverScanning", nil)
 
 		for _, f := range files {
 			if f.IsDir() || !strings.HasSuffix(f.Name(), ".log") {
@@ -52,6 +52,7 @@ var recoverCmd = &cobra.Command{
 			path := filepath.Join(logDir, f.Name())
 			file, err := os.Open(path)
 			if err != nil {
+				ui.Warning("RecoverLogOpenFailed", map[string]interface{}{"File": f.Name()})
 				continue
 			}
 
@@ -84,8 +85,7 @@ var recoverCmd = &cobra.Command{
 		}
 
 		if len(entries) == 0 {
-			color.Yellow("⚠️ No sync history found in logs.")
-			fmt.Println("Note: Reconstruction is only possible for syncs performed after the logging system was implemented.")
+			ui.Warning("RecoverNoHistory", nil)
 			return nil
 		}
 
@@ -129,7 +129,7 @@ var recoverCmd = &cobra.Command{
 		}
 
 		if len(pidGroups) == 0 {
-			color.Green("✨ State is already up to date (no new log entries since last checkpoint).")
+			ui.Success("RecoverUpToDate", nil)
 			return nil
 		}
 
@@ -174,7 +174,7 @@ var recoverCmd = &cobra.Command{
 					}
 
 					if !hasCheckpoint {
-						color.Yellow("⚠️ Detected interrupted local commit for %s (Remote succeeded, local state may have missed it)", localPath)
+						ui.Warning("RecoverInterrupted", map[string]interface{}{"Path": localPath})
 					}
 
 					remoteID, _ := entry.Data["remote_id"].(string)
@@ -215,7 +215,7 @@ var recoverCmd = &cobra.Command{
 		}
 
 		if !changesFound {
-			color.Green("✨ All sync events since last checkpoint already exist in state.json.")
+			ui.Success("RecoverAllExist", nil)
 			// Log a completion to move the HWM past these redundant entries
 			logger.Log.Info("Recovery skipped: no changes", slog.String("type", logger.TypeRecoveryComplete))
 			return nil
@@ -233,9 +233,9 @@ var recoverCmd = &cobra.Command{
 
 		addedCount := len(mappings) - initialCount
 		if addedCount > 0 {
-			color.Green("✅ Successfully recovered %d new mappings to state.json", addedCount)
+			ui.Success("RecoverNewMappings", map[string]interface{}{"Count": addedCount})
 		} else {
-			color.Green("✅ Successfully updated existing mappings in state.json")
+			ui.Success("RecoverUpdated", nil)
 		}
 		
 		logger.Log.Info("Recovery complete", slog.String("type", logger.TypeRecoveryComplete), slog.Int("count", len(state.Mappings)))
