@@ -29,11 +29,11 @@ echo "✅ Path flattening (---) verified in Gist."
 echo "▶️ Testing 2-way Sync..."
 # Push: Modified local
 echo "modified" > "$TEST_DIR/nested/deep/file.txt"
-$GISTSYNC_BIN sync "$TEST_DIR/nested" | grep "Sync successful"
+$GISTSYNC_BIN sync "$TEST_DIR/nested" | grep "pushed to remote"
 
 # Pull: Modified remote
 gh_set_file_in_gist "$GIST_ID" "deep---file.txt" "remote-change" # This is a helper I'll add to common.sh
-$GISTSYNC_BIN sync "$TEST_DIR/nested" | grep "Sync successful"
+$GISTSYNC_BIN sync "$TEST_DIR/nested" | grep "pulled from remote"
 grep -q "remote-change" "$TEST_DIR/nested/deep/file.txt"
 echo "✅ Local Push and Remote Pull successful."
 

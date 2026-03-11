@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/pkg/ui"
@@ -16,9 +17,15 @@ var removeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		path := args[0]
 		
-		absPath, _ := core.GetAbsPath(path) // I should add a helper or just use filepath.Abs
+		absPath, _ := filepath.Abs(path)
 		
-		err := core.WithLock(func(state *core.State) error {
+		state, err := core.LoadState()
+		if err != nil {
+			ui.Error("LoadStateFailed", map[string]interface{}{"Err": err})
+			os.Exit(1)
+		}
+
+		err = state.WithLock(func(state *core.State) error {
 			newMappings := []core.Mapping{}
 			found := false
 			for _, m := range state.Mappings {

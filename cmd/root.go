@@ -3,10 +3,12 @@ package cmd
 import (
 	_ "embed"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/internal/logger"
 	"github.com/karanshah229/gistsync/pkg/i18n"
 	"github.com/spf13/cobra"
 )
@@ -32,6 +34,20 @@ func Execute() {
 func init() {
 	rootCmd.SetVersionTemplate("gistsync version {{.Version}}\n")
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		// Initialize logger and reap old logs as early as possible
+		cfg, _ := internal.LoadConfig()
+		logLevel := "info"
+		if cfg != nil {
+			logLevel = cfg.LogLevel
+		}
+
+		if err := logger.Init(logLevel); err != nil {
+			fmt.Fprintf(os.Stderr, "⚠️ Warning: Failed to initialize logger: %v\n", err)
+		} else {
+			_ = logger.ReapLogs()
+			logger.Log.Info("Process started", slog.String("cmd", cmd.Name()))
+		}
+
 		// Skip check for commands that don't need config
 		skipCommands := map[string]struct{}{
 			"init":       {},
@@ -39,6 +55,7 @@ func init() {
 			"version":    {},
 			"completion": {},
 			"provider":   {},
+			"recover":    {},
 		}
 
 		for c := cmd; c != nil; c = c.Parent() {

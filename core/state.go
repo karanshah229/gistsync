@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/karanshah229/gistsync/internal/logger"
 	"github.com/karanshah229/gistsync/internal/storage"
 )
 
@@ -40,11 +41,16 @@ func (s *State) Save() error {
 		return err
 	}
 
-	return storage.WriteAtomic(path, data)
+	err = storage.WriteAtomic(path, data)
+	if err == nil {
+		logger.Checkpoint("State saved successfully")
+	}
+	return err
 }
-// AddMapping adds a mapping and saves state safely
+// AddMapping adds a mapping and saves state safely.
+// It ensures the receiver's state is updated to match the saved content.
 func (s *State) AddMapping(m Mapping) error {
-	return WithLock(func(state *State) error {
+	return s.WithLock(func(state *State) error {
 		// Simple overwrite if local path exists
 		for i, mapping := range state.Mappings {
 			if mapping.LocalPath == m.LocalPath {
@@ -72,23 +78,34 @@ func (s *State) GetMapping(localPath string) *Mapping {
 }
 
 
-// WithLock executes the given function with a file lock held
-func WithLock(fn func(s *State) error) error {
+// WithLock executes the given function with a file lock held.
+// It loads the fresh state from disk, runs the function, saves the result,
+// and synchronizes the caller's state object (s).
+func (s *State) WithLock(fn func(freshState *State) error) error {
 	path, err := storage.GetStateFilePath()
 	if err != nil {
 		return err
 	}
 
 	return storage.WithFileLock(path, func() error {
-		state, err := LoadState()
+		freshState, err := LoadState()
 		if err != nil {
 			return err
 		}
 
-		if err := fn(state); err != nil {
+		if err := fn(freshState); err != nil {
 			return err
 		}
 
-		return state.Save()
+		if err := freshState.Save(); err != nil {
+			return err
+		}
+
+		// Synchronize the caller's state object with the fresh state
+		if s != nil {
+			s.Mappings = freshState.Mappings
+			s.Version = freshState.Version
+		}
+		return nil
 	})
 }

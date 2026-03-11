@@ -5,7 +5,10 @@ const (
 	ConfigFileName    = "config.json"
 	StateFileName     = "state.json"
 	StateLockFileName = "state.json.lock"
+	StateTmpFileName  = "state.json.tmp"
+	ConfigTmpFileName = "config.json.tmp"
 	LogFileName       = "gistsync.log"
+	LogsDirName       = "logs"
 )
 
 // GetIgnoredConfigFiles returns a list of files in the config directory that 
@@ -14,7 +17,10 @@ func GetIgnoredConfigFiles() []string {
 	return []string{
 		StateFileName,
 		StateLockFileName,
+		StateTmpFileName,
+		ConfigTmpFileName,
 		LogFileName,
+		LogsDirName,
 	}
 }
 

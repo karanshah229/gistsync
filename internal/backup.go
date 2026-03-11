@@ -3,12 +3,14 @@ package internal
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/internal/logger"
 	"github.com/karanshah229/gistsync/internal/storage"
 	"github.com/karanshah229/gistsync/pkg/ui"
 )
@@ -76,6 +78,7 @@ func RestoreConfig(p core.Provider) (bool, error) {
 	}
 
 	ui.Print("DownloadingBackup", map[string]interface{}{"ID": selectedID})
+	logger.Log.Info("Restoring from backup", slog.String("gist_id", selectedID))
 	files, err := p.Fetch(selectedID)
 	if err != nil {
 		return false, fmt.Errorf("failed to fetch backup files: %w", err)
@@ -116,8 +119,10 @@ func RestoreConfig(p core.Provider) (bool, error) {
 			}
 
 			if err := storage.WriteAtomic(target, content); err != nil {
+				logger.Log.Error("Failed to restore file", slog.String("path", f.Path), slog.String("error", err.Error()))
 				return false, fmt.Errorf("failed to write %s: %w", f.Path, err)
 			}
+			logger.Checkpoint(fmt.Sprintf("Restored %s from backup", f.Path))
 			ui.Success("RestoredFile", map[string]interface{}{"Path": f.Path})
 		}
 	}

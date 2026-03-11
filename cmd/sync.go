@@ -79,10 +79,11 @@ var syncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		var action core.SyncAction
 		if info.IsDir() {
-			err = engine.SyncDir(path)
+			action, err = engine.SyncDir(path)
 		} else {
-			err = engine.SyncFile(path)
+			action, err = engine.SyncFile(path)
 		}
 
 		if err != nil {
@@ -94,7 +95,15 @@ var syncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		ui.Success("SyncComplete", nil)
+		mapping = state.GetMapping(absPath)
+		switch action {
+		case core.ActionNoop:
+			ui.Print("SyncNoop", map[string]interface{}{"Path": absPath})
+		case core.ActionPush:
+			ui.Success("SyncPushed", map[string]interface{}{"Path": absPath})
+		case core.ActionPull:
+			ui.Success("SyncPulled", map[string]interface{}{"Path": absPath})
+		}
 	},
 }
 

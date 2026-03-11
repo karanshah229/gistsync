@@ -42,6 +42,19 @@ func GetConfigDir() (string, error) {
 	return dir, nil
 }
 
+// GetLogDir returns the absolute path to the logs directory
+func GetLogDir() (string, error) {
+	configDir, err := GetConfigDir()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(configDir, "logs")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
 // GetStateFilePath returns the absolute path to the state.json file
 func GetStateFilePath() (string, error) {
 	dir, err := GetConfigDir()

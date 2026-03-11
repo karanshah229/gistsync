@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.6.0] - 2026-03-11
+- feat: Log rotation + WAL
+
 ## [0.5.0] - 2026-03-10
 - chore: UI Layer + i18n
 

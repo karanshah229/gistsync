@@ -29,6 +29,10 @@ bash tests/test_commands.sh
 # 7. Run Sync Tests
 bash tests/test_sync.sh
 
+# 8. Run Logging and WAL Recovery Tests
+bash tests/test_logging.sh
+bash tests/test_recover.sh
+
 echo "------------------------------------------------"
 echo "✅ ALL TESTS PASSED! 🎉"
 echo "------------------------------------------------"

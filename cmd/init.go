@@ -247,7 +247,7 @@ var initCmd = &cobra.Command{
 				}
 				engine := core.NewEngine(state, p)
 				
-				if err := engine.SyncDir(configDir); err != nil {
+				if _, err := engine.SyncDir(configDir); err != nil {
 					ui.Error("BackupFailed", map[string]interface{}{"Err": err})
 				} else {
 					ui.Success("BackupSuccess", nil)

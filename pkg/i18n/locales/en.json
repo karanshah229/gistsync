@@ -37,6 +37,9 @@
   "SyncingAllMappings": "Syncing all {{.Count}} mappings...",
   "SyncingPath": "Syncing {{.Path}}...",
   "SyncSuccess": "{{.Path}} synced successfully",
+  "SyncNoop": "⏸️  {{.Path}}: already up to date",
+  "SyncPushed": "⬆️  {{.Path}}: pushed to remote",
+  "SyncPulled": "⬇️  {{.Path}}: pulled from remote",
   "SyncFailed": "Sync failed for {{.Path}}: {{.Err}}",
   "WatcherStarted": "GistSync Watcher started. Watching for changes... (Polling remote every 60s)",
   "LocalChangeDetected": "Local change detected in {{.Path}}, syncing...",
@@ -104,6 +107,5 @@
   "VisibilityChangeSuccess": "Successfully changed visibility to {{.Visibility}}",
   "LoadConfigFailed": "Error loading config: {{.Err}}",
   "WatcherFailedToStart": "Watcher failed: {{.Err}}",
-  "GistDeleteWarning": "Warning: failed to delete old gist {{.ID}}: {{.Err}}",
   "ConfirmQuestion": "{{.Message}} (yes / no) "
 }

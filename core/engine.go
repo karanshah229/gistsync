@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/karanshah229/gistsync/internal/logger"
 	"github.com/karanshah229/gistsync/internal/storage"
 	"github.com/karanshah229/gistsync/pkg/ui"
 )
@@ -30,27 +31,29 @@ func GetAbsPath(path string) (string, error) {
 
 
 // SyncFile performs a 2-way sync for a single file
-func (e *Engine) SyncFile(localPath string) error {
+func (e *Engine) SyncFile(localPath string) (SyncAction, error) {
 	absPath, err := filepath.Abs(localPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	mapping := e.State.GetMapping(absPath)
 	if mapping == nil {
-		// New file -> Create gist
-		return e.initialSync(absPath, false)
+		return ActionPush, e.initialSync(absPath, false)
 	}
+
+	// 1. Log Transaction Start
+	logger.SyncStart(absPath, mapping.RemoteID, mapping.IsFolder)
 
 	// Existing mapping -> 3-way sync
 	localHash, err := ComputeFileHash(absPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	remoteFiles, err := e.Provider.Fetch(mapping.RemoteID)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// For single file gists, we expect one file. 
@@ -67,7 +70,7 @@ func (e *Engine) SyncFile(localPath string) error {
 	}
 
 	if remoteFile == nil {
-		return fmt.Errorf("remote gist %s is empty", mapping.RemoteID)
+		return "", fmt.Errorf("remote gist %s is empty", mapping.RemoteID)
 	}
 
 	action := DetermineAction(localHash, remoteFile.Hash, mapping.LastSyncedHash)
@@ -75,61 +78,80 @@ func (e *Engine) SyncFile(localPath string) error {
 	switch action {
 	case ActionNoop:
 		if mapping.LastSyncedHash != localHash {
-			mapping.LastSyncedHash = localHash
-			return e.State.Save()
+			return ActionNoop, e.State.WithLock(func(state *State) error {
+				if m := state.GetMapping(absPath); m != nil {
+					m.LastSyncedHash = localHash
+				}
+				return nil
+			})
 		}
-		return nil
+		return ActionNoop, nil
 	case ActionPush:
 		content, err := os.ReadFile(absPath)
 		if err != nil {
-			return err
+			return "", err
 		}
 		err = e.Provider.Update(mapping.RemoteID, []File{{Path: filepath.Base(absPath), Content: content}})
 		if err != nil {
-			return err
+			logger.SyncError(absPath, err.Error())
+			return "", err
 		}
-		mapping.LastSyncedHash = localHash
-		return e.State.Save()
+		// 2. Log Transaction Success
+		logger.SyncSuccess(absPath, mapping.RemoteID, localHash, mapping.IsFolder, mapping.Provider, mapping.Public)
+		// 3. Log Commit (logs CHECKPOINT internally)
+		return ActionPush, e.State.WithLock(func(state *State) error {
+			if m := state.GetMapping(absPath); m != nil {
+				m.LastSyncedHash = localHash
+			}
+			return nil
+		})
 	case ActionPull:
 		err = os.WriteFile(absPath, remoteFile.Content, 0644)
 		if err != nil {
-			return err
+			return "", err
 		}
-		mapping.LastSyncedHash = remoteFile.Hash
-		return e.State.Save()
+		// 2. Log Transaction Success
+		logger.SyncSuccess(absPath, mapping.RemoteID, remoteFile.Hash, mapping.IsFolder, mapping.Provider, mapping.Public)
+		// 3. Log Commit (logs CHECKPOINT internally)
+		return ActionPull, e.State.WithLock(func(state *State) error {
+			if m := state.GetMapping(absPath); m != nil {
+				m.LastSyncedHash = remoteFile.Hash
+			}
+			return nil
+		})
 	case ActionConflict:
-		return &ConflictError{
+		return "", &ConflictError{
 			LocalHash:      localHash,
 			RemoteHash:     remoteFile.Hash,
 			LastSyncedHash: mapping.LastSyncedHash,
 		}
 	}
 
-	return nil
+	return "", nil
 }
 
 // SyncDir performs a sync for a directory
-func (e *Engine) SyncDir(localPath string) error {
+func (e *Engine) SyncDir(localPath string) (SyncAction, error) {
 	absPath, err := filepath.Abs(localPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	mapping := e.State.GetMapping(absPath)
 	if mapping == nil {
-		return e.initialSync(absPath, false)
+		return ActionPush, e.initialSync(absPath, false)
 	}
 
 	// Fetch remote
 	remoteFiles, err := e.Provider.Fetch(mapping.RemoteID)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Read local files
 	localFiles, err := e.ReadLocalDir(absPath)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	currentLocalHash := e.ComputeDirHash(localFiles)
@@ -145,6 +167,9 @@ func (e *Engine) SyncDir(localPath string) error {
 	}
 	remoteHash := e.ComputeDirHash(filteredRemote)
 	
+	// 1. Log Transaction Start
+	logger.SyncStart(absPath, mapping.RemoteID, mapping.IsFolder)
+
 	action := DetermineAction(currentLocalHash, remoteHash, mapping.LastSyncedHash) 
 
 	// Special case for config directory: if content is same, but state.json is missing or different in gist,
@@ -160,11 +185,15 @@ func (e *Engine) SyncDir(localPath string) error {
 			}
 		}
 
-		localStateJSON, _ := json.MarshalIndent(e.State, "", "  ")
-		
-		// Robust comparison: Unmarshal both and compare (or just compare raw if we trust Marshaler)
-		// For now, let's try a simple string comparison but ensure we project correctly.
-		if !stateInGist || string(remoteStateContent) != string(localStateJSON) {
+		// Load freshest state for comparison
+		freshState, err := LoadState()
+		if err == nil {
+			localStateJSON, _ := json.MarshalIndent(freshState, "", "  ")
+			if !stateInGist || string(remoteStateContent) != string(localStateJSON) {
+				action = ActionPush
+			}
+		} else {
+			// If we can't load state, fallback to push to be safe
 			action = ActionPush
 		}
 	}
@@ -172,45 +201,67 @@ func (e *Engine) SyncDir(localPath string) error {
 	switch action {
 	case ActionNoop:
 		if mapping.LastSyncedHash != currentLocalHash {
-			mapping.LastSyncedHash = currentLocalHash
-			return e.State.Save()
+			return ActionNoop, e.State.WithLock(func(state *State) error {
+				if m := state.GetMapping(absPath); m != nil {
+					m.LastSyncedHash = currentLocalHash
+				}
+				return nil
+			})
 		}
-		return nil
+		return ActionNoop, nil
 	case ActionPush:
 		uploadFiles := localFiles
 		if absPath == configDir {
 			// Virtual State Projection: Inject CURRENT state into backup
-			// We update the hash BEFORE marshaling so that the projected state.json
-			// matches exactly what will be saved locally.
-			mapping.LastSyncedHash = currentLocalHash
-			stateJSON, err := json.MarshalIndent(e.State, "", "  ")
+			// We load the freshest state from disk to ensure we include all recent changes.
+			freshState, err := LoadState()
 			if err == nil {
-				// Avoid duplicates if it was already in localFiles (though ReadLocalDir should have excluded it)
-				found := false
-				for i, f := range uploadFiles {
-					if f.Path == "state.json" {
-						uploadFiles[i].Content = stateJSON
-						uploadFiles[i].Hash = ComputeHash(stateJSON)
-						found = true
+				// Update the config mapping's hash in the fresh state BEFORE projection.
+				// This ensures that the projected state matches what will be saved locally.
+				for i, m := range freshState.Mappings {
+					if m.LocalPath == absPath {
+						freshState.Mappings[i].LastSyncedHash = currentLocalHash
 						break
 					}
 				}
-				if !found {
-					uploadFiles = append(uploadFiles, File{
-						Path:    "state.json",
-						Content: stateJSON,
-						Hash:    ComputeHash(stateJSON),
-					})
+
+				stateJSON, err := json.MarshalIndent(freshState, "", "  ")
+				if err == nil {
+					// Avoid duplicates if it was already in localFiles (though ReadLocalDir should have excluded it)
+					found := false
+					for i, f := range uploadFiles {
+						if f.Path == "state.json" {
+							uploadFiles[i].Content = stateJSON
+							uploadFiles[i].Hash = ComputeHash(stateJSON)
+							found = true
+							break
+						}
+					}
+					if !found {
+						uploadFiles = append(uploadFiles, File{
+							Path:    "state.json",
+							Content: stateJSON,
+							Hash:    ComputeHash(stateJSON),
+						})
+					}
 				}
 			}
 		}
 
 		err = e.Provider.Update(mapping.RemoteID, uploadFiles)
 		if err != nil {
-			return err
+			logger.SyncError(absPath, err.Error())
+			return "", err
 		}
-		mapping.LastSyncedHash = currentLocalHash
-		return e.State.Save()
+		// 2. Log Transaction Success
+		logger.SyncSuccess(absPath, mapping.RemoteID, currentLocalHash, mapping.IsFolder, mapping.Provider, mapping.Public)
+		// 3. Log Commit (logs CHECKPOINT internally)
+		return ActionPush, e.State.WithLock(func(state *State) error {
+			if m := state.GetMapping(absPath); m != nil {
+				m.LastSyncedHash = currentLocalHash
+			}
+			return nil
+		})
 	case ActionPull:
 		// MVP: Directory pull-all might be complex if we need to delete local files not in gist.
 		// For now, write/overwrite what we have.
@@ -218,20 +269,27 @@ func (e *Engine) SyncDir(localPath string) error {
 			target := filepath.Join(absPath, rf.Path)
 			os.MkdirAll(filepath.Dir(target), 0755)
 			if err := os.WriteFile(target, rf.Content, 0644); err != nil {
-				return err
+				return "", err
 			}
 		}
-		mapping.LastSyncedHash = remoteHash
-		return e.State.Save()
+		// 2. Log Transaction Success
+		logger.SyncSuccess(absPath, mapping.RemoteID, remoteHash, mapping.IsFolder, mapping.Provider, mapping.Public)
+		// 3. Log Commit (logs CHECKPOINT internally)
+		return ActionPull, e.State.WithLock(func(state *State) error {
+			if m := state.GetMapping(absPath); m != nil {
+				m.LastSyncedHash = remoteHash
+			}
+			return nil
+		})
 	case ActionConflict:
-		return &ConflictError{
+		return "", &ConflictError{
 			LocalHash:      currentLocalHash,
 			RemoteHash:     remoteHash,
 			LastSyncedHash: mapping.LastSyncedHash,
 		}
 	}
 
-	return nil
+	return "", nil
 }
 
 
@@ -246,6 +304,10 @@ func (e *Engine) ReadLocalDir(absPath string) ([]File, error) {
 		}
 		if info.IsDir() {
 			if path != absPath && strings.HasPrefix(filepath.Base(path), ".") {
+				return filepath.SkipDir
+			}
+
+			if isConfigDir && storage.IsIgnoredConfigFile(info.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -315,18 +377,23 @@ func (e *Engine) initialSync(absPath string, public bool) error {
 	configDir, _ := storage.GetConfigDir()
 	if absPath == configDir {
 		// Virtual State Projection for initial sync:
-		// We need to include the mapping we are ABOUT to create.
-		tempState := *e.State
-		tempState.Mappings = append(append([]Mapping{}, e.State.Mappings...), Mapping{
+		// We need to include the mapping we are ABOUT to create in the freshest state.
+		freshState, err := LoadState()
+		if err != nil {
+			// If state.json doesn't exist yet (e.g. first sync), use empty state
+			freshState = &State{Version: e.State.Version}
+		}
+
+		freshState.Mappings = append(freshState.Mappings, Mapping{
 			LocalPath:      absPath,
-			RemoteID:       "PENDING", // Provider will use the created ID, but for content comparison, any stable ID works
+			RemoteID:       "PENDING", 
 			Provider:       "github",
 			IsFolder:       isFolder,
 			Public:         public,
 			LastSyncedHash: hash,
 		})
 
-		stateJSON, err := json.MarshalIndent(tempState, "", "  ")
+		stateJSON, err := json.MarshalIndent(freshState, "", "  ")
 		if err == nil {
 			uploadFiles = append(uploadFiles, File{
 				Path:    "state.json",
@@ -336,11 +403,18 @@ func (e *Engine) initialSync(absPath string, public bool) error {
 		}
 	}
 
+	// 1. Log Transaction Start
+	logger.SyncStart(absPath, "", isFolder)
+
 	remoteID, err := e.Provider.Create(uploadFiles, public)
 	if err != nil {
+		logger.SyncError(absPath, err.Error())
 		return err
 	}
 
+	// 2. Log Transaction Success
+	logger.SyncSuccess(absPath, remoteID, hash, isFolder, "github", public)
+	// AddMapping handles persistence and updating e.State internally using WithLock
 	return e.State.AddMapping(Mapping{
 		LocalPath:      absPath,
 		RemoteID:       remoteID,
@@ -367,7 +441,7 @@ func (e *Engine) SetVisibility(path string, public bool) error {
 	var oldRemoteID string
 	var newRemoteID string
 
-	err = WithLock(func(state *State) error {
+	err = e.State.WithLock(func(state *State) error {
 		mapping := state.GetMapping(absPath)
 		if mapping == nil {
 			return fmt.Errorf("path %s is not tracked", path)
@@ -480,6 +554,8 @@ func (e *Engine) Status(localPath string) (SyncAction, error) {
 		return "UNTRACKED", nil
 	}
 
+	configDir, _ := storage.GetConfigDir()
+
 	var localHash string
 	if mapping.IsFolder {
 		files, err := e.ReadLocalDir(absPath)
@@ -501,7 +577,15 @@ func (e *Engine) Status(localPath string) (SyncAction, error) {
 
 	var remoteHash string
 	if mapping.IsFolder {
-		remoteHash = e.ComputeDirHash(remoteFiles)
+		// Filter remote files to match ReadLocalDir logic (exclude state.json etc.)
+		var filteredRemote []File
+		for _, f := range remoteFiles {
+			if absPath == configDir && storage.IsIgnoredConfigFile(f.Path) {
+				continue
+			}
+			filteredRemote = append(filteredRemote, f)
+		}
+		remoteHash = e.ComputeDirHash(filteredRemote)
 	} else {
 		if len(remoteFiles) == 0 {
 			return "REMOTE_DELETED", nil
@@ -510,6 +594,32 @@ func (e *Engine) Status(localPath string) (SyncAction, error) {
 	}
 
 	action := DetermineAction(localHash, remoteHash, mapping.LastSyncedHash)
+
+	// Special case for config directory: if content is same, but state.json is missing or different in gist,
+	// we still want to report ActionPush to ensure our backup is current.
+	if action == ActionNoop && absPath == configDir {
+		stateInGist := false
+		var remoteStateContent []byte
+		for _, f := range remoteFiles {
+			if f.Path == "state.json" {
+				stateInGist = true
+				remoteStateContent = f.Content
+				break
+			}
+		}
+
+		// Load freshest state for comparison
+		freshState, err := LoadState()
+		if err == nil {
+			localStateJSON, _ := json.MarshalIndent(freshState, "", "  ")
+			if !stateInGist || string(remoteStateContent) != string(localStateJSON) {
+				action = ActionPush
+			}
+		} else {
+			action = ActionPush
+		}
+	}
+
 	if action == ActionConflict {
 		return SyncAction(fmt.Sprintf("CONFLICT (Local: %s, Remote: %s, LastSynced: %s)", 
 			localHash[:8], remoteHash[:8], mapping.LastSyncedHash[:8])), nil

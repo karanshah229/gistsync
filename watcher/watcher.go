@@ -54,9 +54,18 @@ func (w *Watcher) Start() error {
 				return nil
 			}
 			if event.Has(fsnotify.Write) || event.Has(fsnotify.Create) || event.Has(fsnotify.Rename) {
-				// Ignore self-updating files in the config directory to prevent feedback loops
 				name := filepath.Base(event.Name)
-				if storage.IsIgnoredConfigFile(name) {
+				configDir, _ := storage.GetConfigDir()
+
+				// For events inside the config directory: use an allowlist.
+				// Only state.json and config.json changes should trigger a config backup.
+				// Everything else (tmp, lock, logs) is silently ignored.
+				if filepath.Dir(event.Name) == configDir {
+					if name == storage.StateFileName || name == storage.ConfigFileName {
+						lastPath = configDir
+						debounceTimer.Reset(time.Duration(w.Config.WatchDebounce) * time.Millisecond)
+					}
+					// All other config dir events are ignored
 					continue
 				}
 
@@ -115,9 +124,9 @@ func (w *Watcher) Start() error {
 			for _, m := range w.Engine.State.Mappings {
 				var err error
 				if m.IsFolder {
-					err = w.Engine.SyncDir(m.LocalPath)
+					_, err = w.Engine.SyncDir(m.LocalPath)
 				} else {
-					err = w.Engine.SyncFile(m.LocalPath)
+					_, err = w.Engine.SyncFile(m.LocalPath)
 				}
 				if err != nil {
 					if _, ok := err.(*core.ConflictError); ok {
@@ -153,9 +162,9 @@ func (w *Watcher) syncPath(path string) {
 	if mapping != nil {
 		var err error
 		if mapping.IsFolder {
-			err = w.Engine.SyncDir(mapping.LocalPath)
+			_, err = w.Engine.SyncDir(mapping.LocalPath)
 		} else {
-			err = w.Engine.SyncFile(mapping.LocalPath)
+			_, err = w.Engine.SyncFile(mapping.LocalPath)
 		}
 		if err != nil {
 			log.Printf("Auto-sync error: %v", err)

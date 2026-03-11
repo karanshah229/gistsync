@@ -1,0 +1,3 @@
+🔍 Scanning logs for recovery...
+⚠️ Detected interrupted local commit for /Users/karan/projects/Personal_projects/gh-gist-syncer/tests/tmp_files/test_data/transaction_test.txt (Remote succeeded, local state may have missed it)
+✅ Successfully recovered 2 new mappings to state.json

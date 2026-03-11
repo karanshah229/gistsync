@@ -14,18 +14,27 @@ func SyncAll(engine *core.Engine) {
 
 	ui.Print("SyncingAllMappings", map[string]interface{}{"Count": len(engine.State.Mappings)})
 	for _, m := range engine.State.Mappings {
-		ui.Print("SyncingPath", map[string]interface{}{"Path": m.LocalPath})
+		var action core.SyncAction
 		var err error
 		if m.IsFolder {
-			err = engine.SyncDir(m.LocalPath)
+			action, err = engine.SyncDir(m.LocalPath)
 		} else {
-			err = engine.SyncFile(m.LocalPath)
+			action, err = engine.SyncFile(m.LocalPath)
 		}
 
 		if err != nil {
 			ui.Error("SyncFailed", map[string]interface{}{"Path": m.LocalPath, "Err": err})
 		} else {
-			ui.Success("SyncSuccess", map[string]interface{}{"Path": m.LocalPath})
+			switch action {
+			case core.ActionNoop:
+				ui.Print("SyncNoop", map[string]interface{}{"Path": m.LocalPath})
+			case core.ActionPush:
+				ui.Success("SyncPushed", map[string]interface{}{"Path": m.LocalPath})
+			case core.ActionPull:
+				ui.Success("SyncPulled", map[string]interface{}{"Path": m.LocalPath})
+			default:
+				ui.Success("SyncSuccess", map[string]interface{}{"Path": m.LocalPath})
+			}
 		}
 	}
 }

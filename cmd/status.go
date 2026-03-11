@@ -42,12 +42,12 @@ var statusCmd = &cobra.Command{
 		for _, p := range paths {
 			status, err := engine.Status(p)
 			if err != nil {
-				ui.Printf("StatusError", map[string]interface{}{"Path": p, "Err": err})
+				ui.Print("StatusError", map[string]interface{}{"Path": p, "Err": err})
 				continue
 			}
 			
 			abs, _ := filepath.Abs(p)
-			ui.Printf("StatusLine", map[string]interface{}{"Path": abs, "Status": status})
+			ui.Print("StatusLine", map[string]interface{}{"Path": abs, "Status": status})
 		}
 	},
 }
