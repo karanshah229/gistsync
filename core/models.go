@@ -1,24 +1,22 @@
 package core
 
+import "github.com/karanshah229/gistsync/internal/domain"
+
 // File represents a single file to be synced
-type File struct {
-	Path    string `json:"path"`
-	Content []byte `json:"content"`
-	Hash    string `json:"hash"`
-}
+type File = domain.File
 
 // Mapping represents a sync relationship between a local path and a remote gist
-type Mapping struct {
-	LocalPath      string `json:"local_path"`
-	RemoteID       string `json:"remote_id"`
-	Provider       string `json:"provider"`
-	IsFolder       bool   `json:"is_folder"`
-	Public         bool   `json:"public"`
-	LastSyncedHash string `json:"last_synced_hash"`
-}
+type Mapping = domain.Mapping
 
 // State represents the local state of all mappings
-type State struct {
-	Version  string    `json:"version"`
-	Mappings []Mapping `json:"mappings"`
-}
+type State = domain.State
+
+// SyncAction represents the sync action
+type SyncAction = domain.SyncAction
+
+const (
+	ActionNoop     = domain.ActionNoop
+	ActionPush     = domain.ActionPush
+	ActionPull     = domain.ActionPull
+	ActionConflict = domain.ActionConflict
+)

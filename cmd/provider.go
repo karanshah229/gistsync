@@ -3,9 +3,9 @@ package cmd
 import (
 	"os"
 
-	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/internal/domain"
+	"github.com/karanshah229/gistsync/internal/sync"
 	"github.com/karanshah229/gistsync/pkg/ui"
-	"github.com/karanshah229/gistsync/providers"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +23,18 @@ var githubTestCmd = &cobra.Command{
 	Use:   "test",
 	Short: "Test GitHub connection and authentication",
 	Run: func(cmd *cobra.Command, args []string) {
-		p := providers.NewGitHubProvider()
+		manager, err := sync.NewSyncManager(Version)
+		if err != nil {
+			ui.Error("InitializationFailed", map[string]interface{}{"Err": err})
+			os.Exit(1)
+		}
+
+		p, err := manager.GetProvider("github")
+		if err != nil {
+			ui.Error("ProviderNotFound", map[string]interface{}{"Name": "GitHub"})
+			os.Exit(1)
+		}
+
 		ui.Print("TestingProvider", map[string]interface{}{"Name": "GitHub"})
 		testProvider(p)
 	},
@@ -38,13 +49,24 @@ var gitlabTestCmd = &cobra.Command{
 	Use:   "test",
 	Short: "Test GitLab connection and authentication",
 	Run: func(cmd *cobra.Command, args []string) {
-		p := providers.NewGitLabProvider()
+		manager, err := sync.NewSyncManager(Version)
+		if err != nil {
+			ui.Error("InitializationFailed", map[string]interface{}{"Err": err})
+			os.Exit(1)
+		}
+
+		p, err := manager.GetProvider("gitlab")
+		if err != nil {
+			ui.Error("ProviderNotFound", map[string]interface{}{"Name": "GitLab", "Err": err})
+			os.Exit(1)
+		}
+
 		ui.Print("TestingProvider", map[string]interface{}{"Name": "GitLab"})
 		testProvider(p)
 	},
 }
 
-func testProvider(p core.Provider) {
+func testProvider(p domain.Provider) {
 	ok, msg, err := p.Verify()
 	if err != nil {
 		ui.Error("VerificationError", map[string]interface{}{"Err": err})

@@ -1,34 +1,29 @@
 package core
 
-import "fmt"
+import (
+	"fmt"
 
-type SyncAction string
-
-const (
-	ActionNoop     SyncAction = "NOOP"
-	ActionPush     SyncAction = "PUSH"
-	ActionPull     SyncAction = "PULL"
-	ActionConflict SyncAction = "CONFLICT"
+	"github.com/karanshah229/gistsync/internal/domain"
 )
 
 // DetermineAction decides which sync action to take based on 3-way hash comparison
-func DetermineAction(localHash, remoteHash, lastSyncedHash string) SyncAction {
+func DetermineAction(localHash, remoteHash, lastSyncedHash string) domain.SyncAction {
 	if localHash == remoteHash {
-		return ActionNoop
+		return domain.ActionNoop
 	}
 
 	if localHash == lastSyncedHash {
 		// Local hasn't changed, but remote has
-		return ActionPull
+		return domain.ActionPull
 	}
 
 	if remoteHash == lastSyncedHash {
 		// Remote hasn't changed, but local has
-		return ActionPush
+		return domain.ActionPush
 	}
 
 	// Both have changed from the last sync point
-	return ActionConflict
+	return domain.ActionConflict
 }
 
 // ConflictError represents a sync conflict

@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.0] - 2026-03-12
+- chore: Refactor app to layered arch
+
 ## [0.8.0] - 2026-03-12
 - feat: Add command to backup config dir
 

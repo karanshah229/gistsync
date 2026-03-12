@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/internal/domain"
 )
 
 const gistPathSeparator = "---"
@@ -18,10 +18,10 @@ func NewGitHubProvider() *GitHubProvider {
 	return &GitHubProvider{}
 }
 
-// Ensure GitHubProvider implements core.Provider
-var _ core.Provider = (*GitHubProvider)(nil)
+// Ensure GitHubProvider implements domain.Provider
+var _ domain.Provider = (*GitHubProvider)(nil)
 
-func (p *GitHubProvider) Create(files []core.File, public bool) (string, error) {
+func (p *GitHubProvider) Create(files []domain.File, public bool) (string, error) {
 	filtered := p.filterEmptyFiles(files)
 	if len(filtered) == 0 {
 		return "", fmt.Errorf("cannot sync: all provided files are empty, and GitHub Gists do not support blank files")
@@ -55,7 +55,7 @@ func (p *GitHubProvider) Create(files []core.File, public bool) (string, error) 
 	return res.ID, nil
 }
 
-func (p *GitHubProvider) Update(remoteID string, files []core.File) error {
+func (p *GitHubProvider) Update(remoteID string, files []domain.File) error {
 	filtered := p.filterEmptyFiles(files)
 	if len(filtered) == 0 {
 		return nil
@@ -79,8 +79,8 @@ func (p *GitHubProvider) Update(remoteID string, files []core.File) error {
 	return nil
 }
 
-func (p *GitHubProvider) filterEmptyFiles(files []core.File) []core.File {
-	var filtered []core.File
+func (p *GitHubProvider) filterEmptyFiles(files []domain.File) []domain.File {
+	var filtered []domain.File
 	for _, f := range files {
 		if len(strings.TrimSpace(string(f.Content))) > 0 {
 			filtered = append(filtered, f)
@@ -89,7 +89,7 @@ func (p *GitHubProvider) filterEmptyFiles(files []core.File) []core.File {
 	return filtered
 }
 
-func (p *GitHubProvider) makeFilesMap(files []core.File) map[string]interface{} {
+func (p *GitHubProvider) makeFilesMap(files []domain.File) map[string]interface{} {
 	filesMap := make(map[string]interface{})
 	for _, f := range files {
 		// Flatten path for Gist API (no slashes allowed in creation)
@@ -101,7 +101,7 @@ func (p *GitHubProvider) makeFilesMap(files []core.File) map[string]interface{} 
 	return filesMap
 }
 
-func (p *GitHubProvider) Fetch(remoteID string) ([]core.File, error) {
+func (p *GitHubProvider) Fetch(remoteID string) ([]domain.File, error) {
 	cmd := exec.Command("gh", "api", fmt.Sprintf("gists/%s", remoteID))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -119,14 +119,14 @@ func (p *GitHubProvider) Fetch(remoteID string) ([]core.File, error) {
 		return nil, fmt.Errorf("failed to unmarshal gist api response: %w", err)
 	}
 
-	var files []core.File
+	var files []domain.File
 	for _, f := range res.Files {
 		// Unflatten path from Gist API
 		origPath := strings.ReplaceAll(f.Filename, gistPathSeparator, "/")
-		files = append(files, core.File{
+		files = append(files, domain.File{
 			Path:    origPath,
 			Content: []byte(f.Content),
-			Hash:    core.ComputeHash([]byte(f.Content)),
+			Hash:    domain.ComputeHash([]byte(f.Content)),
 		})
 	}
 
@@ -166,7 +166,7 @@ func (p *GitHubProvider) CheckRateLimit() (int, time.Time, error) {
 	return res.Resources.Core.Remaining, time.Unix(res.Resources.Core.Reset, 0), nil
 }
 
-func (p *GitHubProvider) List() ([]core.GistInfo, error) {
+func (p *GitHubProvider) List() ([]domain.GistInfo, error) {
 	cmd := exec.Command("gh", "api", "gists")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -184,7 +184,7 @@ func (p *GitHubProvider) List() ([]core.GistInfo, error) {
 		return nil, fmt.Errorf("failed to unmarshal gists api response: %w", err)
 	}
 
-	var infos []core.GistInfo
+	var infos []domain.GistInfo
 	for _, g := range res {
 		updatedAt, _ := time.Parse(time.RFC3339, g.UpdatedAt)
 		
@@ -195,7 +195,7 @@ func (p *GitHubProvider) List() ([]core.GistInfo, error) {
 			files = append(files, origPath)
 		}
 
-		infos = append(infos, core.GistInfo{
+		infos = append(infos, domain.GistInfo{
 			ID:          g.ID,
 			Description: g.Description,
 			UpdatedAt:   updatedAt,

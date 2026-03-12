@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/internal/domain"
 )
 
 // RepairResult represents the result of a single mapping repair
@@ -18,10 +18,10 @@ type RepairResult struct {
 }
 
 // RepairConfig scans mappings and attempts to fix paths for the current OS
-func RepairConfig(state *core.State) ([]RepairResult, error) {
+func RepairConfig(state *domain.State) ([]RepairResult, bool, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get home directory: %w", err)
+		return nil, false, fmt.Errorf("failed to get home directory: %w", err)
 	}
 
 	// regex for common home directory patterns:
@@ -70,11 +70,5 @@ func RepairConfig(state *core.State) ([]RepairResult, error) {
 		results = append(results, res)
 	}
 
-	if modified {
-		if err := state.Save(); err != nil {
-			return results, fmt.Errorf("failed to save repaired state: %w", err)
-		}
-	}
-
-	return results, nil
+	return results, modified, nil
 }

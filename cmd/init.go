@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"slices"
@@ -9,11 +8,9 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal"
-	"github.com/karanshah229/gistsync/internal/storage"
+	"github.com/karanshah229/gistsync/internal/sync"
 	"github.com/karanshah229/gistsync/pkg/ui"
-	"github.com/karanshah229/gistsync/providers"
 	"github.com/spf13/cobra"
 )
 
@@ -31,13 +28,28 @@ var initCmd = &cobra.Command{
 
 		ui.Print("Initializing", nil)
 
+		manager, err := sync.NewSyncManager(Version)
+		if err != nil {
+			ui.Error("InitializationFailed", map[string]interface{}{"Err": err})
+			os.Exit(1)
+		}
+
 		// 1. Check Providers
 		ui.Header("CheckingProviders", nil)
-		gh := providers.NewGitHubProvider()
-		gl := providers.NewGitLabProvider()
+		gh, _ := manager.GetProvider("github")
+		gl, _ := manager.GetProvider("gitlab")
 
-		ghOk, ghMsg, ghErr := gh.Verify()
-		glOk, glMsg, glErr := gl.Verify()
+		ghOk := false
+		var ghMsg string
+		if gh != nil {
+			ghOk, ghMsg, _ = gh.Verify()
+		}
+		
+		glOk := false
+		var glMsg string
+		if gl != nil {
+			glOk, glMsg, _ = gl.Verify()
+		}
 
 		connectedProviders := []string{}
 		if ghOk {
@@ -45,9 +57,6 @@ var initCmd = &cobra.Command{
 			connectedProviders = append(connectedProviders, "github")
 		} else {
 			ui.Error("GitHubNotConnected", map[string]interface{}{"Msg": strings.TrimSpace(ghMsg)})
-			if ghErr != nil {
-				ui.Warning("VerifyError", map[string]interface{}{"Err": ghErr})
-			}
 		}
 
 		if glOk {
@@ -55,9 +64,6 @@ var initCmd = &cobra.Command{
 			connectedProviders = append(connectedProviders, "gitlab")
 		} else {
 			ui.Error("GitLabNotConnected", map[string]interface{}{"Msg": strings.TrimSpace(glMsg)})
-			if glErr != nil {
-				ui.Warning("VerifyError", map[string]interface{}{"Err": glErr})
-			}
 		}
 
 		if len(connectedProviders) == 0 {
@@ -67,7 +73,6 @@ var initCmd = &cobra.Command{
 		}
 
 		// 2. Optional Restore
-		restored := false
 		wantRestore := ui.Confirm("ConfirmQuestion", map[string]interface{}{"Message": "Would you like to restore configurations from a provider?"})
 
 		if wantRestore {
@@ -86,63 +91,73 @@ var initCmd = &cobra.Command{
 				}
 			}
 
-			var p core.Provider
-			if selectedRestoreProvider == "github" {
-				p = gh
-			} else {
-				p = gl
-			}
-
-			ok, err := internal.RestoreConfig(p)
+			backups, err := manager.ListBackups(selectedRestoreProvider)
 			if err != nil {
 				ui.Error("RestorationFailed", map[string]interface{}{"Err": err})
-			} else if ok {
-				ui.Success("RestorationSuccess", nil)
-				restored = true
-
-				// Post-restore actions: Auto-repair paths
-				state, stateErr := core.LoadState()
-				if stateErr != nil {
-					ui.Warning("LoadStateFailed", map[string]interface{}{"Err": stateErr})
+			} else if len(backups) == 0 {
+				ui.Warning("NoBackupFound", nil)
+			} else {
+				// For now, use the first backup or implement selection
+				// To maintain original behavior, we can let user select if multiple
+				selectedID := backups[0].ID
+				if len(backups) > 1 {
+					options := []string{}
+					idMap := make(map[string]string)
+					for _, b := range backups {
+						label := fmt.Sprintf("%s (Updated: %v)", b.ID, b.UpdatedAt.Format("2006-01-02 15:04:05"))
+						options = append(options, label)
+						idMap[label] = b.ID
+					}
+					prompt := &survey.Select{
+						Message: "Multiple backups found. Select one to restore:",
+						Options: options,
+					}
+					var selection string
+					survey.AskOne(prompt, &selection)
+					selectedID = idMap[selection]
 				}
-				if state != nil {
-					results, err := internal.RepairConfig(state)
-					if err == nil && len(results) > 0 {
-						repairedCount := 0
-						missingCount := 0
-						for _, r := range results {
-							if r.Status == "REPAIRED" {
-								repairedCount++
-							} else if r.Status == "MISSING" {
-								missingCount++
+
+				if err := manager.RestoreConfig(selectedRestoreProvider, selectedID); err != nil {
+					ui.Error("RestorationFailed", map[string]interface{}{"Err": err})
+				} else {
+					ui.Success("RestorationSuccess", nil)
+					
+					// Auto-repair paths
+					state, _ := manager.Repo.Load()
+					if state != nil {
+						results, _, err := internal.RepairConfig(state)
+						if err == nil && len(results) > 0 {
+							repairedCount := 0
+							missingCount := 0
+							for _, r := range results {
+								if r.Status == "REPAIRED" {
+									repairedCount++
+								} else if r.Status == "MISSING" {
+									missingCount++
+								}
 							}
-						}
-						if repairedCount > 0 || missingCount > 0 {
-							ui.Print("AutoRepairedPaths", map[string]interface{}{
-								"Repaired": repairedCount,
-								"Missing":  missingCount,
-							})
-							if repairedCount > 0 {
-								ui.Print("RepairDetailsHint", nil)
+							if repairedCount > 0 || missingCount > 0 {
+								ui.Print("AutoRepairedPaths", map[string]interface{}{
+									"Repaired": repairedCount,
+									"Missing":  missingCount,
+								})
 							}
 						}
 					}
-				}
 
-				wantSync := ui.Confirm("ConfirmQuestion", map[string]interface{}{"Message": "Would you like to run sync now?"})
-				if wantSync {
-					ui.Print("RunningSync", nil)
-					internal.SyncAll(core.NewEngine(state, p))
+					wantSync := ui.Confirm("ConfirmQuestion", map[string]interface{}{"Message": "Would you like to run sync now?"})
+					if wantSync {
+						manager.SyncAll(selectedRestoreProvider)
+					}
+					ui.Success("Ready", nil)
+					return
 				}
-				
-				ui.Success("Ready", nil)
-				return
-			} else {
-				ui.Warning("NoBackupFound", nil)
 			}
 		}
 
 		config := internal.DefaultConfig()
+		restored := false // We can use this to skip backup if we restored
+		// (The previous block returned early if restored, so if we're here, restored is false or we didn't restore)
 		reader := ui.GetSharedReader()
 
 		if ghOk {
@@ -219,61 +234,19 @@ var initCmd = &cobra.Command{
 		}
 
 		// 6. Initialize state.json
-		statePath, err := storage.GetStateFilePath()
-		if err != nil {
-			ui.Error("GetStatePathFailed", map[string]interface{}{"Err": err})
-			os.Exit(1)
-		}
-
-		// Get version from root command or file
-		version := Version
-		if version == "" {
-			version = "unknown"
-		}
-
-		initialState := core.State{
-			Version:  version,
-			Mappings: []core.Mapping{},
-		}
-
-		data, marshalErr := json.MarshalIndent(initialState, "", "  ")
-		if marshalErr != nil {
-			ui.Error("MarshalStateFailed", map[string]interface{}{"Err": marshalErr})
-			os.Exit(1)
-		}
-		if err := storage.WriteAtomic(statePath, data); err != nil {
+		if err := manager.InitializeState(); err != nil {
 			ui.Error("StateInitFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 		ui.Success("StateInitialized", nil)
 
-		// 7. Optional Backup (only if not restored)
+		// 7. Optional Backup
 		if !restored {
 			if ui.Confirm("ConfirmQuestion", map[string]interface{}{"Message": "Would you like to backup your configuration to the default provider?"}) {
-				ui.Print("BackingUpConfig", nil)
-				configDir, configDirErr := storage.GetConfigDir()
-				if configDirErr != nil {
-					ui.Error("ConfigDirFailed", map[string]interface{}{"Err": configDirErr})
+				if err := manager.BackupConfig(config.DefaultProvider); err != nil {
+					ui.Error("BackupFailed", map[string]interface{}{"Err": err})
 				} else {
-					// Re-load state to get any changes
-					state, stateErr := core.LoadState()
-					if stateErr != nil {
-						ui.Warning("LoadStateFailed", map[string]interface{}{"Err": stateErr})
-					} else {
-						var p core.Provider
-						if config.DefaultProvider == "github" {
-							p = providers.NewGitHubProvider()
-						} else {
-							p = providers.NewGitLabProvider()
-						}
-						engine := core.NewEngine(state, p)
-
-						if _, err := engine.SyncDir(configDir); err != nil {
-							ui.Error("BackupFailed", map[string]interface{}{"Err": err})
-						} else {
-							ui.Success("BackupSuccess", nil)
-						}
-					}
+					ui.Success("BackupSuccess", nil)
 				}
 			}
 		}

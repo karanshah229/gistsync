@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/karanshah229/gistsync/internal/storage"
+	"github.com/karanshah229/gistsync/pkg/ui"
 )
 
 // Config represents user-level application settings
@@ -125,4 +127,57 @@ func SaveConfig(config *Config) error {
 	}
 
 	return storage.WriteAtomic(path, data)
+}
+
+// ValidateAndCleanConfig ensures configuration values are valid and cleans up broken ones
+func ValidateAndCleanConfig(data []byte) []byte {
+	var cfg map[string]interface{}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return data // Return as is if unmarshal fails, though we expect valid JSON
+	}
+
+	cleaned := false
+
+	// Example validation: Check LogLevel
+	if val, ok := cfg["log_level"]; ok {
+		level, ok := val.(string)
+		allowed := []string{"debug", "info", "warn", "error"}
+		isValid := false
+		if ok {
+			for _, a := range allowed {
+				if strings.ToLower(level) == a {
+					isValid = true
+					break
+				}
+			}
+		}
+		if !isValid {
+			cfg["log_level"] = "info"
+			cleaned = true
+		}
+	}
+
+	// Range checks for intervals
+	if val, ok := cfg["watch_interval_seconds"]; ok {
+		if v, ok := val.(float64); ok && v <= 0 {
+			cfg["watch_interval_seconds"] = 60
+			cleaned = true
+		}
+	}
+	if val, ok := cfg["watch_debounce_ms"]; ok {
+		if v, ok := val.(float64); ok && v < 0 {
+			cfg["watch_debounce_ms"] = 500
+			cleaned = true
+		}
+	}
+
+	if cleaned {
+		ui.Warning("InvalidConfigReset", nil)
+		newData, err := json.MarshalIndent(cfg, "", "  ")
+		if err == nil {
+			return newData
+		}
+	}
+
+	return data
 }

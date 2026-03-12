@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/internal/domain"
 )
 
 func TestRepairConfig(t *testing.T) {
@@ -28,8 +28,8 @@ func TestRepairConfig(t *testing.T) {
 	home, _ := os.UserHomeDir()
 	missingHomePath := filepath.Join(home, "nonexistent_gistsync_test_file")
 
-	state := &core.State{
-		Mappings: []core.Mapping{
+	state := &domain.State{
+		Mappings: []domain.Mapping{
 			{LocalPath: validPath, RemoteID: "123"},       // VALID
 			{LocalPath: foreignHomePath, RemoteID: "456"}, // REPAIRED OR MISSING (depending on if we can match)
 			{LocalPath: missingHomePath, RemoteID: "789"}, // MISSING
@@ -37,7 +37,7 @@ func TestRepairConfig(t *testing.T) {
 		},
 	}
 
-	results, err := RepairConfig(state)
+	results, _, err := RepairConfig(state)
 	if err != nil {
 		t.Fatalf("RepairConfig failed: %v", err)
 	}

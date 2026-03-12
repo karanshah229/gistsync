@@ -6,20 +6,19 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/karanshah229/gistsync/core"
-	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/internal/domain"
 	"github.com/karanshah229/gistsync/internal/logger"
 	"github.com/karanshah229/gistsync/internal/storage"
+	"github.com/karanshah229/gistsync/internal/sync"
 	"github.com/karanshah229/gistsync/pkg/ui"
 )
 
 type Watcher struct {
-	Engine *core.Engine
-	Config *internal.Config
+	Manager *sync.SyncManager
 }
 
-func NewWatcher(engine *core.Engine, config *internal.Config) *Watcher {
-	return &Watcher{Engine: engine, Config: config}
+func NewWatcher(manager *sync.SyncManager) *Watcher {
+	return &Watcher{Manager: manager}
 }
 
 func (w *Watcher) Start() error {
@@ -27,10 +26,13 @@ func (w *Watcher) Start() error {
 	if err != nil {
 		return err
 	}
-	defer watcher.Close()
-
 	// Add all mapped paths to watcher
-	for _, m := range w.Engine.State.Mappings {
+	state, err := w.Manager.Repo.Load()
+	if err != nil {
+		return err
+	}
+
+	for _, m := range state.Mappings {
 		err = watcher.Add(m.LocalPath)
 		if err != nil {
 			logger.Log.Warn("Failed to watch path", slog.String("path", m.LocalPath), slog.String("error", err.Error()))
@@ -40,11 +42,11 @@ func (w *Watcher) Start() error {
 	ui.Print("WatcherStarted", nil)
 
 	// Polling ticker from config
-	pollTicker := time.NewTicker(time.Duration(w.Config.WatchInterval) * time.Second)
+	pollTicker := time.NewTicker(time.Duration(w.Manager.Config.WatchInterval) * time.Second)
 	defer pollTicker.Stop()
 
 	// Debounce timer from config
-	debounceTimer := time.NewTimer(time.Duration(w.Config.WatchDebounce) * time.Millisecond)
+	debounceTimer := time.NewTimer(time.Duration(w.Manager.Config.WatchDebounce) * time.Millisecond)
 	debounceTimer.Stop()
 	var lastPath string
 
@@ -58,52 +60,46 @@ func (w *Watcher) Start() error {
 				name := filepath.Base(event.Name)
 				configDir, _ := storage.GetConfigDir()
 
-				// For events inside the config directory: use an allowlist.
-				// Only state.json and config.json changes should trigger a config backup.
-				// Everything else (tmp, lock, logs) is silently ignored.
 				if filepath.Dir(event.Name) == configDir {
 					if name == storage.StateFileName || name == storage.ConfigFileName {
 						lastPath = configDir
-						debounceTimer.Reset(time.Duration(w.Config.WatchDebounce) * time.Millisecond)
+						debounceTimer.Reset(time.Duration(w.Manager.Config.WatchDebounce) * time.Millisecond)
 					}
-					// All other config dir events are ignored
 					continue
 				}
 
 				lastPath = event.Name
-				debounceTimer.Reset(time.Duration(w.Config.WatchDebounce) * time.Millisecond)
+				debounceTimer.Reset(time.Duration(w.Manager.Config.WatchDebounce) * time.Millisecond)
 			}
 		case <-debounceTimer.C:
-			// ui.Print(DebounceTriggered", map[string]interface{}{"Path": lastPath}) // Silent for now?
-			// Differentiate between real local changes and remote poll updates via hash
-			mapping := w.Engine.State.GetMapping(lastPath)
+			state, _ := w.Manager.Repo.Load()
+			mapping := state.GetMapping(lastPath)
 			if mapping == nil {
-				// Search for parent mapping if it's a file in a folder
-				for _, m := range w.Engine.State.Mappings {
-					if m.IsFolder && (lastPath == m.LocalPath || filepath.Dir(lastPath) == m.LocalPath) {
+				for _, m := range state.Mappings {
+					if m.IsFolder && (lastPath == m.LocalPath || filepath.HasPrefix(lastPath, m.LocalPath)) {
 						mapping = &m
-						// ui.Print(FoundParentMapping", map[string]interface{}{"Parent": m.LocalPath, "Path": lastPath}) // Silent
 						break
 					}
 				}
 			}
+
 			if mapping != nil {
 				var currentHash string
 				var err error
-				if mapping.IsFolder {
-					files, err := w.Engine.ReadLocalDir(mapping.LocalPath)
-					if err == nil {
-						currentHash = w.Engine.ComputeDirHash(files)
+				engine, engineErr := w.Manager.GetEngine(mapping.Provider)
+				if engineErr == nil {
+					if mapping.IsFolder {
+						files, err := engine.ReadLocalDir(mapping.LocalPath)
+						if err == nil {
+							currentHash = domain.ComputeAggregateHash(files)
+						}
+					} else {
+						currentHash, err = domain.ComputeFileHash(lastPath)
 					}
-				} else {
-					currentHash, err = core.ComputeFileHash(lastPath)
 				}
 
 				configDir, _ := storage.GetConfigDir()
 				if err == nil && currentHash == mapping.LastSyncedHash && mapping.LocalPath != configDir {
-					// Hash matches LastSyncedHash -> this was likely a remote pull, skip message
-					// EXCEPT for the config directory, where we want to sync even if content hasn't changed
-					// (because state.json itself might have changed)
 					continue
 				}
 			}
@@ -112,31 +108,8 @@ func (w *Watcher) Start() error {
 			w.syncPath(lastPath)
 
 		case <-pollTicker.C:
-			// Rate limit check
-			remaining, _, err := w.Engine.Provider.CheckRateLimit()
-			if err != nil {
-				logger.Log.Warn("Rate limit check failed", slog.String("error", err.Error()))
-			} else if remaining < 10 {
-				logger.Log.Warn("Rate limit low, skipping poll cycle", slog.Int("remaining", remaining))
-				continue
-			}
-
 			ui.Print("CheckingRemoteChanges", nil)
-			for _, m := range w.Engine.State.Mappings {
-				var err error
-				if m.IsFolder {
-					_, err = w.Engine.SyncDir(m.LocalPath)
-				} else {
-					_, err = w.Engine.SyncFile(m.LocalPath)
-				}
-				if err != nil {
-					if _, ok := err.(*core.ConflictError); ok {
-						logger.Log.Warn("Remote change detected: CONFLICT", slog.String("path", m.LocalPath))
-					} else {
-						logger.Log.Error("Remote poll sync error", slog.String("path", m.LocalPath), slog.String("error", err.Error()))
-					}
-				}
-			}
+			w.Manager.SyncAll("") // Use default provider
 
 		case err, ok := <-watcher.Errors:
 			if !ok {
@@ -148,11 +121,11 @@ func (w *Watcher) Start() error {
 }
 
 func (w *Watcher) syncPath(path string) {
-	// Determine if it's a file or dir
-	mapping := w.Engine.State.GetMapping(path)
+	state, _ := w.Manager.Repo.Load()
+	mapping := state.GetMapping(path)
 	if mapping == nil {
 		// Search for parent mapping if it's a file in a folder
-		for _, m := range w.Engine.State.Mappings {
+		for _, m := range state.Mappings {
 			if m.IsFolder && filepath.HasPrefix(path, m.LocalPath) {
 				mapping = &m
 				break
@@ -161,16 +134,9 @@ func (w *Watcher) syncPath(path string) {
 	}
 
 	if mapping != nil {
-		var err error
-		if mapping.IsFolder {
-			_, err = w.Engine.SyncDir(mapping.LocalPath)
-		} else {
-			_, err = w.Engine.SyncFile(mapping.LocalPath)
-		}
+		err := w.Manager.SyncPath(mapping.LocalPath, mapping.Provider, "", mapping.Public)
 		if err != nil {
 			logger.Log.Error("Auto-sync error", slog.String("path", mapping.LocalPath), slog.String("error", err.Error()))
-		} else {
-			ui.Success("AutoSyncSuccess", map[string]interface{}{"Path": mapping.LocalPath})
 		}
 	}
 }

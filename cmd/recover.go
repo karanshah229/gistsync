@@ -11,9 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/internal/domain"
 	"github.com/karanshah229/gistsync/internal/logger"
 	"github.com/karanshah229/gistsync/internal/storage"
+	"github.com/karanshah229/gistsync/internal/sync"
 	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/spf13/cobra"
 )
@@ -31,10 +32,12 @@ var recoverCmd = &cobra.Command{
 	Short: "Recover state.json from log files (WAL replay)",
 	Long:  `Scans the logs directory for JSON-formatted logs and reconstructs the state.json file by replaying successful sync events.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		logDir, err := storage.GetLogDir()
+		manager, err := sync.NewSyncManager(Version)
 		if err != nil {
-			return fmt.Errorf("failed to get log directory for recovery: %w", err)
+			return fmt.Errorf("failed to initialize sync manager: %w", err)
 		}
+
+		logDir, err := storage.GetLogDir()
 
 		files, err := os.ReadDir(logDir)
 		if err != nil {
@@ -95,14 +98,16 @@ var recoverCmd = &cobra.Command{
 		})
 
 		// 1. Baseline Initialization: Load existing state
-		mappings := make(map[string]core.Mapping)
-		state, err := core.LoadState()
+		mappings := make(map[string]domain.Mapping)
+		state, err := manager.Repo.Load()
 		if err == nil && state != nil {
 			for _, m := range state.Mappings {
 				mappings[m.LocalPath] = m
 			}
 		} else {
-			state = &core.State{} // Empty state if missing
+			state = &domain.State{
+				Version: Version,
+			} // Empty state if missing
 		}
 		initialCount := len(mappings)
 
@@ -197,7 +202,7 @@ var recoverCmd = &cobra.Command{
 						provider = "github"
 					}
 
-					newMapping := core.Mapping{
+					newMapping := domain.Mapping{
 						LocalPath:      localPath,
 						RemoteID:       remoteID,
 						LastSyncedHash: hash,
@@ -222,12 +227,12 @@ var recoverCmd = &cobra.Command{
 		}
 
 		// 3. Save Baseline + Applied Changes
-		state.Mappings = make([]core.Mapping, 0, len(mappings))
+		state.Mappings = make([]domain.Mapping, 0, len(mappings))
 		for _, m := range mappings {
 			state.Mappings = append(state.Mappings, m)
 		}
 
-		if err := state.Save(); err != nil {
+		if err := manager.Repo.Save(state); err != nil {
 			return fmt.Errorf("failed to save recovered state: %w", err)
 		}
 

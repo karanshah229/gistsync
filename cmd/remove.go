@@ -1,12 +1,9 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 
-	"github.com/karanshah229/gistsync/core"
-	"github.com/karanshah229/gistsync/pkg/i18n"
+	"github.com/karanshah229/gistsync/internal/sync"
 	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/spf13/cobra"
 )
@@ -16,45 +13,18 @@ var removeCmd = &cobra.Command{
 	Short: "Stop tracking a file or directory",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		path := args[0]
-		
-		absPath, err := filepath.Abs(path)
+		manager, err := sync.NewSyncManager(Version)
 		if err != nil {
-			ui.Error("AbsPathFailed", map[string]interface{}{"Path": path, "Err": err})
-			os.Exit(1)
-		}
-		
-		state, err := core.LoadState()
-		if err != nil {
-			ui.Error("LoadStateFailed", map[string]interface{}{"Err": err})
+			ui.Error("InitializationFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 
-		err = state.WithLock(func(state *core.State) error {
-			newMappings := []core.Mapping{}
-			found := false
-			for _, m := range state.Mappings {
-				if m.LocalPath == absPath {
-					found = true
-					continue
-				}
-				newMappings = append(newMappings, m)
-			}
-
-			if !found {
-				return fmt.Errorf("%s", i18n.T("RemoveNotTrackedHint", map[string]interface{}{"Path": absPath}))
-			}
-
-			state.Mappings = newMappings
-			return nil
-		})
-
-		if err != nil {
+		if err := manager.RemovePath(args[0]); err != nil {
 			ui.Error("RemovalError", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 
-		ui.Success("RemovalSuccess", map[string]interface{}{"Path": path})
+		ui.Success("RemovalSuccess", map[string]interface{}{"Path": args[0]})
 	},
 }
 

@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/internal/sync"
 	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/spf13/cobra"
 )
@@ -17,20 +18,20 @@ var autostartEnableCmd = &cobra.Command{
 	Use:   "enable",
 	Short: "Enable gistsync autostart at login",
 	Run: func(cmd *cobra.Command, args []string) {
+		manager, err := sync.NewSyncManager(Version)
+		if err != nil {
+			ui.Error("InitializationFailed", map[string]interface{}{"Err": err})
+			os.Exit(1)
+		}
+
 		if err := internal.InstallAutostart(); err != nil {
 			ui.Error("AutostartFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 		
-		// Also update config
-		config, loadErr := internal.LoadConfig()
-		if loadErr != nil {
-			ui.Warning("LoadConfigFailed", map[string]interface{}{"Err": loadErr})
-		} else if config != nil {
-			config.Autostart = true
-			if saveErr := internal.SaveConfig(config); saveErr != nil {
-				ui.Warning("SaveConfigFailed", map[string]interface{}{"Err": saveErr})
-			}
+		manager.Config.Autostart = true
+		if saveErr := internal.SaveConfig(manager.Config); saveErr != nil {
+			ui.Warning("SaveConfigFailed", map[string]interface{}{"Err": saveErr})
 		}
 		
 		ui.Success("AutostartEnabled", nil)
@@ -41,20 +42,20 @@ var autostartDisableCmd = &cobra.Command{
 	Use:   "disable",
 	Short: "Disable gistsync autostart at login",
 	Run: func(cmd *cobra.Command, args []string) {
+		manager, err := sync.NewSyncManager(Version)
+		if err != nil {
+			ui.Error("InitializationFailed", map[string]interface{}{"Err": err})
+			os.Exit(1)
+		}
+
 		if err := internal.UninstallAutostart(); err != nil {
 			ui.Error("AutostartDisableFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 		
-		// Also update config
-		config, loadErr := internal.LoadConfig()
-		if loadErr != nil {
-			ui.Warning("LoadConfigFailed", map[string]interface{}{"Err": loadErr})
-		} else if config != nil {
-			config.Autostart = false
-			if saveErr := internal.SaveConfig(config); saveErr != nil {
-				ui.Warning("SaveConfigFailed", map[string]interface{}{"Err": saveErr})
-			}
+		manager.Config.Autostart = false
+		if saveErr := internal.SaveConfig(manager.Config); saveErr != nil {
+			ui.Warning("SaveConfigFailed", map[string]interface{}{"Err": saveErr})
 		}
 		
 		ui.Success("AutostartDisabled", nil)

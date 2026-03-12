@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal"
 	"github.com/karanshah229/gistsync/internal/logger"
+	"github.com/karanshah229/gistsync/internal/state"
 	"github.com/karanshah229/gistsync/pkg/i18n"
 	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/spf13/cobra"
@@ -72,7 +72,14 @@ func init() {
 
 		// Strictly check if config and state are present and valid
 		_, configErr := internal.LoadConfig()
-		_, stateErr := core.LoadState()
+		
+		repo, err := state.NewFileRepository()
+		var stateErr error
+		if err != nil {
+			stateErr = err
+		} else {
+			_, stateErr = repo.Load()
+		}
 
 		if configErr != nil && stateErr != nil {
 			return fmt.Errorf("%s", i18n.T("ConfigMissingError", nil))

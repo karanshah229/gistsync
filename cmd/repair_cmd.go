@@ -3,8 +3,8 @@ package cmd
 import (
 	"os"
 
-	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/internal/sync"
 	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/spf13/cobra"
 )
@@ -13,18 +13,31 @@ var repairCmd = &cobra.Command{
 	Use:   "repair",
 	Short: "Repair configuration paths (useful after restoring on a different OS)",
 	Run: func(cmd *cobra.Command, args []string) {
+		manager, err := sync.NewSyncManager(Version)
+		if err != nil {
+			ui.Error("InitializationFailed", map[string]interface{}{"Err": err})
+			os.Exit(1)
+		}
+
 		ui.Print("RepairingPaths", nil)
 
-		state, err := core.LoadState()
+		state, err := manager.Repo.Load()
 		if err != nil {
 			ui.Error("LoadStateFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 
-		results, err := internal.RepairConfig(state)
+		results, modified, err := internal.RepairConfig(state)
 		if err != nil {
 			ui.Error("RepairFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
+		}
+
+		if modified {
+			if err := manager.Repo.Save(state); err != nil {
+				ui.Error("SaveStateFailed", map[string]interface{}{"Err": err})
+				os.Exit(1)
+			}
 		}
 
 		if len(results) == 0 {

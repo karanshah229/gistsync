@@ -2,11 +2,9 @@ package cmd
 
 import (
 	"os"
-	"path/filepath"
 
-	"github.com/karanshah229/gistsync/core"
+	"github.com/karanshah229/gistsync/internal/sync"
 	"github.com/karanshah229/gistsync/pkg/ui"
-	"github.com/karanshah229/gistsync/providers"
 	"github.com/spf13/cobra"
 )
 
@@ -15,43 +13,19 @@ var statusCmd = &cobra.Command{
 	Short: "Show the sync status of a file or directory",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		state, err := core.LoadState()
+		manager, err := sync.NewSyncManager(Version)
 		if err != nil {
-			ui.Error("LoadStateFailed", map[string]interface{}{"Err": err})
+			ui.Error("InitializationFailed", map[string]interface{}{"Err": err})
 			os.Exit(1)
 		}
 
-		provider := providers.NewGitHubProvider()
-		engine := core.NewEngine(state, provider)
-
-		var paths []string
+		path := ""
 		if len(args) > 0 {
-			paths = append(paths, args[0])
-		} else {
-			// Show status for all mappings
-			for _, m := range state.Mappings {
-				paths = append(paths, m.LocalPath)
-			}
+			path = args[0]
 		}
 
-		if len(paths) == 0 {
-			ui.Print("NoFilesTracked", nil)
-			return
-		}
-
-		for _, p := range paths {
-			status, err := engine.Status(p)
-			if err != nil {
-				ui.Print("StatusError", map[string]interface{}{"Path": p, "Err": err})
-				continue
-			}
-			
-			abs, err := filepath.Abs(p)
-			if err != nil {
-				ui.Print("StatusError", map[string]interface{}{"Path": p, "Err": err})
-				continue
-			}
-			ui.Print("StatusLine", map[string]interface{}{"Path": abs, "Status": status})
+		if err := manager.Status(path, ""); err != nil {
+			os.Exit(1)
 		}
 	},
 }
