@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.7.0] - 2026-03-12
+- feat: Manual sync with upstream
+
 ## [0.6.0] - 2026-03-11
 - feat: Log rotation + WAL
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/karanshah229/gistsync/core"
 	"github.com/karanshah229/gistsync/internal"
+	"github.com/karanshah229/gistsync/pkg/i18n"
 	"github.com/karanshah229/gistsync/pkg/ui"
 	"github.com/karanshah229/gistsync/providers"
 	"github.com/spf13/cobra"
@@ -14,7 +15,7 @@ import (
 var syncCmd = &cobra.Command{
 	Use:   "sync [path]",
 	Short: "Sync a file or directory to a gist (creates a new gist if not already tracked)",
-	Args:  cobra.MaximumNArgs(1),
+	Args:  cobra.MaximumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		state, err := core.LoadState()
 		if err != nil {
@@ -22,7 +23,27 @@ var syncCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		provider := providers.NewGitHubProvider()
+		var providerName string
+		providerFlag, _ := cmd.Flags().GetString("provider")
+		if providerFlag != "" {
+			providerName = providerFlag
+		} else {
+			cfg, _ := internal.LoadConfig()
+			if cfg != nil && cfg.DefaultProvider != "" {
+				providerName = cfg.DefaultProvider
+			} else {
+				providerName = "github"
+			}
+		}
+
+		var provider core.Provider
+		switch providerName {
+		case "gitlab":
+			provider = providers.NewGitLabProvider()
+		default:
+			provider = providers.NewGitHubProvider()
+		}
+
 		engine := core.NewEngine(state, provider)
 
 		if len(args) == 0 {
@@ -35,6 +56,55 @@ var syncCmd = &cobra.Command{
 		if err != nil {
 			ui.Error("AbsPathFailed", map[string]interface{}{"Path": path, "Err": err})
 			os.Exit(1)
+		}
+
+		if len(args) == 2 {
+			gistID := args[1]
+			
+			info, err := os.Stat(path)
+			if err != nil {
+				ui.Error("StatPathFailed", map[string]interface{}{"Path": path, "Err": err})
+				os.Exit(1)
+			}
+			
+			ui.Print("ManualMappingStart", map[string]interface{}{
+				"Path":     path,
+				"ID":       gistID,
+				"Provider": providerName,
+			})
+
+			mapping := state.GetMapping(absPath)
+			if mapping != nil {
+				msg := i18n.T("MappingOverwriteConfirm", map[string]interface{}{
+					"Path":  path,
+					"OldID": mapping.RemoteID,
+					"NewID": gistID,
+				})
+				confirm := ui.Confirm("ConfirmQuestion", map[string]interface{}{
+					"Message": msg,
+				})
+				if !confirm {
+					ui.Print("MappingOverwriteCancel", nil)
+					return
+				}
+			}
+
+			err = state.AddMapping(core.Mapping{
+				LocalPath:      absPath,
+				RemoteID:       gistID,
+				Provider:       providerName,
+				IsFolder:       info.IsDir(),
+				Public:         false,
+				LastSyncedHash: "",
+			})
+			if err != nil {
+				ui.Error("InitializationFailed", map[string]interface{}{"Err": err})
+				os.Exit(1)
+			}
+			
+			// Reload state
+			state, _ = core.LoadState()
+			engine = core.NewEngine(state, provider)
 		}
 		
 		// Check if path is already tracked
@@ -119,5 +189,6 @@ var syncCmd = &cobra.Command{
 func init() {
 	syncCmd.Flags().Bool("public", false, "Create a public gist (for initial sync)")
 	syncCmd.Flags().Bool("private", false, "Create a private gist (default for initial sync)")
+	syncCmd.Flags().String("provider", "", "Override the default provider (github, gitlab)")
 	rootCmd.AddCommand(syncCmd)
 }

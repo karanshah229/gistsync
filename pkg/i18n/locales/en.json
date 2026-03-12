@@ -135,5 +135,8 @@
   "GetStatePathFailed": "Failed to get state path: {{.Err}}",
   "AbsPathFailed": "Failed to resolve absolute path for '{{.Path}}': {{.Err}}",
   "MarshalStateFailed": "Failed to serialize initial state: {{.Err}}",
-  "ConfigDirFailed": "Failed to get config directory: {{.Err}}"
+  "ConfigDirFailed": "Failed to get config directory: {{.Err}}",
+  "ManualMappingStart": "\n🔗 Connecting / mapping {{.Path}} to {{.ID}} from {{.Provider}}...",
+  "MappingOverwriteConfirm": "⚠️  Path {{.Path}} is already tracked with {{.OldID}}.\n   Do you want to overwrite mapping to {{.NewID}}?",
+  "MappingOverwriteCancel": "⏸️  Mapping overwrite cancelled."
 }

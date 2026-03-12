@@ -49,6 +49,10 @@ gistsync sync path/to/file_or_folder
     ```bash
     gistsync sync my_folder --public
     ```
+-   **Manual Mapping**: You can manually connect a local path to an existing remote Gist ID. `gistsync` will verify the file contents and alert you with a safe `CONFLICT` if they differ, preventing accidental overwrites. You can also specify a provider for the mapping using the `--provider` flag.
+    ```bash
+    gistsync sync my_file.txt <existing_gist_id> --provider github
+    ```
 
 ### 3. Change Visibility
 You can change the visibility of a tracked path at any time. This uses our **Transactional Engine** to safely recreate the Gist without losing your local state.

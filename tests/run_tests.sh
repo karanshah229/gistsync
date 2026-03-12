@@ -33,6 +33,9 @@ bash tests/test_sync.sh
 bash tests/test_logging.sh
 bash tests/test_recover.sh
 
+# 9. Run Manual Mapping Tests
+bash tests/test_manual_mapping.sh
+
 echo "------------------------------------------------"
 echo "✅ ALL TESTS PASSED! 🎉"
 echo "------------------------------------------------"
