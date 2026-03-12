@@ -38,6 +38,7 @@ gistsync init
 ```
 
 - **Backup & Restore**: `init` can automatically search for and restore your configurations from GitHub Gists.
+- **Manual Config Sync**: Use `gistsync config sync` to manually trigger a backup of your configuration folder at any time.
 
 ### 2. Sync File or Folder
 To start tracking and syncing a path:
@@ -86,11 +87,12 @@ gistsync autostart enable
 gistsync autostart disable
 ```
 
-### 8. Process Management
-Manage multiple running instances of `gistsync`.
+### 9. Backup & Configuration
+Manage tool settings and manual backups.
 ```bash
-gistsync process list          # Show all running gistsync processes
-gistsync process kill-others   # Terminate other instances except the current one
+gistsync config list          # List current configuration
+gistsync config sync          # Manually backup configuration to a Gist
+gistsync config set <key> <val> # Update a configuration value
 ```
 
 ## Uninstallation

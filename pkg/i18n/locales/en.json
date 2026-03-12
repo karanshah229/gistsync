@@ -66,7 +66,7 @@
   "NoProcessesFound": "No running gistsync processes found.",
   "NoOtherProcessesRunning": "No other gistsync processes were running.",
   "KilledOtherProcesses": "Successfully killed {{.Count}} other gistsync process(es).",
-  "ConfigList": "watch_interval_seconds: {{.Interval}}\nwatch_debounce_ms:      {{.Debounce}}\nlog_level:              {{.Level}}",
+  "ConfigList": "watch_interval_seconds: {{.Interval}}\nwatch_debounce_ms:      {{.Debounce}}\nlog_level:              {{.Level}}\ndefault_provider:       {{.Provider}}\nautostart:              {{.Autostart}}",
   "ConfigVal": "{{.Val}}",
   "UnknownConfigKey": "unknown config key: {{.Key}}",
   "ConfigSetSuccess": "Successfully set {{.Key}} to {{.Val}}",

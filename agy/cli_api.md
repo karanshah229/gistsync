@@ -37,6 +37,13 @@ Starts a foreground process that monitors all tracked files and directories.
 - **Remote Polling**: Checks GitHub for remote changes every 60 seconds.
 - **Rate Limit Safety**: Automatically skips polling cycles if API rate limits (remaining requests) are too low.
 
+### `config <subcommand>`
+Manages tool configuration and backups.
+- `list`: Shows all current configuration keys and values.
+- `get <key>`: Prints the value of a specific configuration key.
+- `set <key> <value>`: Updates a configuration key.
+- `sync`: Manually backs up the entire configuration directory to a Gist provider. This uses **Virtual State Projection** to ensure the remote backup remains consistent and loop-free.
+
 ## State Management
 State is stored in a JSON format at:
 - macOS/Linux: `~/.config/gistsync/state.json`

@@ -39,6 +39,13 @@ gistsync config set watch_debounce_ms 1000
 gistsync config set log_level debug
 ```
 
+### Manual Backup
+You can manually back up your entire configuration directory (including file mappings) to your default provider:
+```bash
+gistsync config sync
+```
+*Note: This utilizes Virtual State Projection to prevent infinite sync loops.*
+
 ---
 
 Changes to configuration (like `watch_interval_seconds`) take effect the next time you restart the `gistsync watch` command. 🏔️

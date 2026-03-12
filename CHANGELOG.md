@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.8.0] - 2026-03-12
+- feat: Add command to backup config dir
+
 ## [0.7.0] - 2026-03-12
 - feat: Manual sync with upstream
 

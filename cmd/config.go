@@ -28,6 +28,8 @@ var configListCmd = &cobra.Command{
 			"Interval": config.WatchInterval,
 			"Debounce": config.WatchDebounce,
 			"Level":    config.LogLevel,
+			"Provider": config.DefaultProvider,
+			"Autostart": config.Autostart,
 		})
 		return nil
 	},
@@ -106,5 +108,6 @@ func init() {
 	configCmd.AddCommand(configListCmd)
 	configCmd.AddCommand(configGetCmd)
 	configCmd.AddCommand(configSetCmd)
+	configCmd.AddCommand(configSyncCmd)
 	rootCmd.AddCommand(configCmd)
 }
