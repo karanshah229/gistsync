@@ -9,7 +9,7 @@ go build -o gistsync .
 
 # 1. Run Unit Tests
 echo "🧪 Running Go Unit Tests..."
-go test ./pkg/i18n ./pkg/ui
+go test ./core/... ./internal/... ./pkg/...
 
 # 2. Run UI Integration Tests
 bash tests/test_ui.sh

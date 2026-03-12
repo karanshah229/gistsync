@@ -39,17 +39,18 @@ The project includes a Git pre-commit hook that will prompt you to bump the vers
 The hook automatically updates `VERSION` and `CHANGELOG.md` and stages them for your commit.
 
 ### Automated Testing
-We maintain a robust bash-based testing suite to verify CLI behavior and sync logic.
+We maintain a comprehensive testing suite consisting of both Go unit tests and Bash-based integration tests.
+
+**Running all tests:**
 ```bash
 make test
-# OR
-chmod +x tests/*.sh && ./tests/run_tests.sh
 ```
-This suite covers:
-- `init` flows (fresh setup & restoration)
-- Subcommand logic (`config`, `provider`, `status`)
-- Core syncing (path flattening & 2-way sync)
-- Autostart & Process Management (internal unit tests)
+
+**Running specific suites:**
+- **Go Unit Tests**: `go test ./...` (Covers core logic, hashing, conflict detection).
+- **Integration Tests**: `./tests/run_tests.sh` (Covers CLI flows, sync states, and recovery).
+
+For a deep dive into the testing architecture and best practices, see the [Testing Architecture Guide](agy/tests.md).
 
 ### Dependency Management
 We use the following libraries for specialized functionality:

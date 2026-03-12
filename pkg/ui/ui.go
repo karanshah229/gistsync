@@ -19,7 +19,16 @@ var (
 	headerColor  = color.New(color.FgHiBlue, color.Bold, color.Underline)
 
 	output io.Writer = os.Stdout
+	stdinReader *bufio.Reader
 )
+
+// GetSharedReader returns a shared buffered reader for os.Stdin
+func GetSharedReader() *bufio.Reader {
+	if stdinReader == nil {
+		stdinReader = bufio.NewReader(os.Stdin)
+	}
+	return stdinReader
+}
 
 // SetOutput overrides the default output (os.Stdout)
 func SetOutput(w io.Writer) {
@@ -69,7 +78,7 @@ func Printf(key string, data interface{}) {
 // Confirm asks a localized yes/no question. Default is true (yes).
 func Confirm(key string, data interface{}) bool {
 	fmt.Fprint(output, i18n.T(key, data))
-	reader := bufio.NewReader(os.Stdin)
+	reader := GetSharedReader()
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(strings.ToLower(input))
 

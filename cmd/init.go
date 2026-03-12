@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -144,7 +143,7 @@ var initCmd = &cobra.Command{
 		}
 
 		config := internal.DefaultConfig()
-		reader := bufio.NewReader(os.Stdin)
+		reader := ui.GetSharedReader()
 
 		if ghOk {
 			config.Providers["github"] = "connected"

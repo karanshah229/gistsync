@@ -46,6 +46,6 @@ cat "$CONFIG_DIR/logs"/*.log | grep -q "/logs_test/test.txt" || { echo "❌ ERRO
 echo "✅ Sync events correctly logged."
 
 # 4. Cleanup
-GIST_ID=$(grep "remote_id" "$CONFIG_DIR/state.json" | cut -d '"' -f 4)
+GIST_ID=$(grep "remote_id" "$CONFIG_DIR/state.json" | cut -d '"' -f 4 | head -n 1)
 XDG_CONFIG_HOME="$TEST_ROOT" gh gist delete "$GIST_ID" --yes || true
 echo "✅ Logging Test Successful!"

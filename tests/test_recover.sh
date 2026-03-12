@@ -40,6 +40,34 @@ if [ "$HASH" != "$RECOVERED_HASH" ]; then
 fi
 echo "✅ state.json successfully reconstructed with correct hash."
 
-# 5. Cleanup
+# 5. HWM (High Water Mark) and Interruption Warning
+echo "▶️ Testing HWM and Interruption Warning..."
+# 5.1 Manual Log Injection (Interruption)
+# Ensure timestamps are later than the last recovery complete entry
+sleep 1
+LOG_FILE=$(ls -t "$CONFIG_DIR/logs/"*.log | head -n 1)
+# Add a SYNC_SUCCESS without CHECKPOINT
+cat <<EOF >> "$LOG_FILE"
+{"time":"$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")","level":"INFO","msg":"sync success","type":"SYNC_SUCCESS","pid":9999,"local_path":"$TEST_DIR/interrupted_file.txt","remote_id":"gist123","hash":"hash123","provider":"github"}
+EOF
+
+$GISTSYNC_BIN recover 2>&1 | grep -i "potential interruption"
+if grep -q "interrupted_file.txt" "$CONFIG_DIR/state.json"; then
+    echo "✅ Interrupted sync recovered with warning."
+else
+    echo "❌ Interrupted sync NOT recovered."
+    # Debug: show state and logs
+    # cat "$CONFIG_DIR/state.json"
+    # tail -n 5 "$LOG_FILE"
+    exit 1
+fi
+
+# 5.2 HWM Check (Recover should be up to date)
+echo "▶️ Testing HWM (Up to date check)..."
+$GISTSYNC_BIN recover | grep -i "already up to date"
+echo "✅ HWM correctly prevents redundant replays."
+
+# 6. Cleanup
+GIST_ID=$(grep "remote_id" "$CONFIG_DIR/state.json" | cut -d '"' -f 4 | head -n 1)
 XDG_CONFIG_HOME="$TEST_ROOT" gh gist delete "$GIST_ID" --yes || true
 echo "✅ Recovery Test Successful!"
