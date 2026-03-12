@@ -2,6 +2,8 @@
 
 `gistsync` is a provider-agnostic file sync engine with GitHub Gists as the first provider implementation. It allows you to sync local files or folders to GitHub Gists with 2-way hash-based change detection.
 
+- **Technical Features**: Atomic writes, Transactional WAL, Advisory Locking, Virtual Projection, and API Batching. [Deep dive into architecture →](architecture.md)
+
 ## Prerequisites
 
 1.  **GitHub CLI (`gh`)**: `gistsync` uses the `gh` CLI for authentication and API interaction.
@@ -93,6 +95,37 @@ Manage tool settings and manual backups.
 gistsync config list          # List current configuration
 gistsync config sync          # Manually backup configuration to a Gist
 gistsync config set <key> <val> # Update a configuration value
+```
+
+### 10. All available commands
+```bash
+➜  ~ gistsync
+A fast and efficient CLI tool to sync local files and folders to GitHub Gists with 2-way hash-based change detection.
+
+Usage:
+  gistsync [command]
+
+Available Commands:
+  autostart   Manage autostart at login
+  completion  Generate the autocompletion script for the specified shell
+  config      Manage gistsync user configurations
+  help        Help about any command
+  init        Initialize gistsync configurations and state
+  process     Manage running gistsync processes
+  provider    Manage and test sync providers
+  recover     Recover state.json from log files (WAL replay)
+  remove      Stop tracking a file or directory
+  status      Show the sync status of a file or directory
+  sync        Sync a file or directory to a gist (creates a new gist if not already tracked)
+  visibility  Change the visibility of a gist
+  watch       Start a background watcher to automatically sync changes
+
+Flags:
+  -h, --help      help for gistsync
+  -v, --version   version for gistsync
+
+Use "gistsync [command] --help" for more information about a command.
+➜  ~
 ```
 
 ## Uninstallation
