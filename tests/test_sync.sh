@@ -13,7 +13,7 @@ printf "n\n\n\n\n\n" | $GISTSYNC_BIN init
 echo "▶️ Testing Nested Directory Sync (Flattening)..."
 mkdir -p "$TEST_DIR/nested/deep"
 echo "hello" > "$TEST_DIR/nested/deep/file.txt"
-$GISTSYNC_BIN sync "$TEST_DIR/nested"
+$GISTSYNC_BIN sync "$TEST_DIR/nested" | grep -i "Initialized"
 
 GIST_ID=$(grep "nested" "$CONFIG_DIR/state.json" | grep -v "gistsync" | cut -d '"' -f 4 | head -n 1)
 if [ -z "$GIST_ID" ]; then
@@ -63,6 +63,11 @@ echo "▶️ Testing Recovery from Remote Deletion..."
 XDG_CONFIG_HOME="$TEST_ROOT" gh gist delete "$GIST_ID" --yes
 $GISTSYNC_BIN sync "$TEST_DIR/nested" | grep -i "creating new gist"
 echo "✅ Successfully re-mapped after remote Gist deletion."
+
+# Bulk sync summary check
+echo "▶️ Testing Bulk Sync Summary..."
+$GISTSYNC_BIN sync | grep -i "Sync complete:"
+echo "✅ Bulk sync summary verified."
 
 # Cleanup
 XDG_CONFIG_HOME="$TEST_ROOT" gh gist delete "$GIST_ID" --yes || true

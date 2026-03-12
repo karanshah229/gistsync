@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.1.0] - 2026-03-12
+- fix: Update messages for sync command
+
 ## [1.0.0] - 2026-03-12
 - chore: Refactor app to layered arch
 

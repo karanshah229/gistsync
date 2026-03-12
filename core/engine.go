@@ -43,7 +43,8 @@ func (e *Engine) SyncFile(localPath string) (domain.SyncAction, error) {
 		return "", err
 	}
 	if mapping == nil {
-		return domain.ActionPush, e.initialSync(absPath, false)
+		_, err := e.initialSync(absPath, false)
+		return domain.ActionPush, err
 	}
 
 	logger.SyncStart(absPath, mapping.RemoteID, mapping.IsFolder)
@@ -73,7 +74,7 @@ func (e *Engine) SyncFile(localPath string) (domain.SyncAction, error) {
 	case domain.ActionPull:
 		return e.pullFile(absPath, mapping, remoteFile)
 	case domain.ActionConflict:
-		return "", &ConflictError{
+		return domain.ActionConflict, &ConflictError{
 			LocalHash:      localHash,
 			RemoteHash:     remoteFile.Hash,
 			LastSyncedHash: mapping.LastSyncedHash,
@@ -95,7 +96,8 @@ func (e *Engine) SyncDir(localPath string) (domain.SyncAction, error) {
 		return "", err
 	}
 	if mapping == nil {
-		return domain.ActionPush, e.initialSync(absPath, false)
+		_, err := e.initialSync(absPath, false)
+		return domain.ActionPush, err
 	}
 
 	remoteFiles, err := e.Provider.Fetch(mapping.RemoteID)
@@ -362,10 +364,10 @@ func (e *Engine) ComputeDirHash(files []domain.File) string {
 	return ComputeHash([]byte(combined))
 }
 
-func (e *Engine) initialSync(absPath string, public bool) error {
+func (e *Engine) initialSync(absPath string, public bool) (*domain.Mapping, error) {
 	info, err := os.Stat(absPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var files []domain.File
@@ -375,13 +377,13 @@ func (e *Engine) initialSync(absPath string, public bool) error {
 	if isFolder {
 		files, err = e.ReadLocalDir(absPath)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		hash = e.ComputeDirHash(files)
 	} else {
 		content, err := os.ReadFile(absPath)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		hash = ComputeHash(content)
 		files = []domain.File{{Path: filepath.Base(absPath), Content: content, Hash: hash}}
@@ -419,21 +421,23 @@ func (e *Engine) initialSync(absPath string, public bool) error {
 	remoteID, err := e.Provider.Create(uploadFiles, public)
 	if err != nil {
 		logger.SyncError(absPath, err.Error())
-		return err
+		return nil, err
 	}
 
 	logger.SyncSuccess(absPath, remoteID, hash, isFolder, "github", public)
-	return e.Repo.AddMapping(domain.Mapping{
+	mapping := domain.Mapping{
 		LocalPath:      absPath,
 		RemoteID:       remoteID,
 		Provider:       "github",
 		IsFolder:       isFolder,
 		Public:         public,
 		LastSyncedHash: hash,
-	})
+	}
+	err = e.Repo.AddMapping(mapping)
+	return &mapping, err
 }
 
-func (e *Engine) InitialSyncWithVisibility(absPath string, public bool) error {
+func (e *Engine) InitialSyncWithVisibility(absPath string, public bool) (*domain.Mapping, error) {
 	return e.initialSync(absPath, public)
 }
 

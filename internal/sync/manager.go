@@ -94,6 +94,9 @@ func (m *SyncManager) SyncAll(providerName string) error {
 		return err
 	}
 
+	var success, failed int
+	total := len(state.Mappings)
+
 	for _, mapping := range state.Mappings {
 		var action domain.SyncAction
 		var syncErr error
@@ -106,9 +109,11 @@ func (m *SyncManager) SyncAll(providerName string) error {
 
 		if syncErr != nil {
 			ui.Error("SyncFailed", map[string]interface{}{"Path": mapping.LocalPath, "Err": syncErr})
+			failed++
 			continue
 		}
 
+		success++
 		switch action {
 		case domain.ActionNoop:
 			ui.Print("SyncNoop", map[string]interface{}{"Path": mapping.LocalPath})
@@ -117,6 +122,14 @@ func (m *SyncManager) SyncAll(providerName string) error {
 		case domain.ActionPull:
 			ui.Success("SyncPulled", map[string]interface{}{"Path": mapping.LocalPath})
 		}
+	}
+
+	if total > 0 {
+		ui.Success("SyncAllSummary", map[string]interface{}{
+			"Success": success,
+			"Failed":  failed,
+			"Total":   total,
+		})
 	}
 
 	return nil
@@ -159,7 +172,20 @@ func (m *SyncManager) SyncPath(path string, providerName string, gistID string, 
 	if mapping == nil {
 		// New sync
 		ui.Print("InitialSyncStart", map[string]interface{}{"Path": absPath})
-		return engine.InitialSyncWithVisibility(absPath, isPublic)
+		mapping, err = engine.InitialSyncWithVisibility(absPath, isPublic)
+		if err != nil {
+			return err
+		}
+		visibility := "private"
+		if mapping.Public {
+			visibility = "public"
+		}
+		ui.Success("InitialSyncSuccess", map[string]interface{}{
+			"Path":       mapping.LocalPath,
+			"Visibility": visibility,
+			"ID":         mapping.RemoteID,
+		})
+		return nil
 	}
 
 	// Regular sync
